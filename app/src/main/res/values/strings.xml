@@ -1,3 +1,33 @@
 <resources>
     <string name="app_name">itube pro</string>
+
+    <!-- Common -->
+    <string name="action_retry">Retry</string>
+    <string name="yes">yes</string>
+    <string name="no">no</string>
+    <string name="unknown">unknown</string>
+
+    <!-- Errors -->
+    <string name="error_network">No connection. Check your internet and try again.</string>
+    <string name="error_rate_limited">YouTube is rate-limiting this network. Try again later or switch networks.</string>
+    <string name="error_invalid_url">That doesn\'t look like a YouTube video link.</string>
+    <string name="error_age_restricted">This video is age-restricted.</string>
+    <string name="error_geo_restricted">This video isn\'t available in your country.</string>
+    <string name="error_unavailable">This video is unavailable (private, removed or paid).</string>
+    <string name="error_parsing">Couldn\'t read YouTube\'s response. The extractor may need an update.</string>
+    <string name="error_unknown">Something went wrong.</string>
+
+    <!-- Debug extraction screen -->
+    <string name="debug_title">Extractor debug</string>
+    <string name="debug_url_label">YouTube video URL</string>
+    <string name="debug_extract">Extract</string>
+    <string name="debug_duration">Duration: %1$d:%2$02d</string>
+    <string name="debug_manifests">DASH manifest: %1$s · HLS manifest: %2$s</string>
+    <string name="debug_streams_header">Streams (%1$d)</string>
+    <string name="stream_kind_muxed">Video+audio</string>
+    <string name="stream_kind_video_only">Video only</string>
+    <string name="stream_kind_audio">Audio</string>
+    <string name="stream_title">%1$s · %2$s</string>
+    <string name="stream_details">%1$s · %2$s · %3$d kbps · %4$s</string>
+    <string name="stream_audio_track">Track: %1$s</string>
 </resources>

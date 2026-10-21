@@ -19,8 +19,17 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // JitPack builds NewPipeExtractor straight from a git commit. Restrict it to the
+        // TeamNewPipe group so no other dependency can be resolved from it.
+        maven(url = "https://jitpack.io") {
+            content { includeGroup("com.github.TeamNewPipe") }
+        }
     }
 }
 
 rootProject.name = "itube pro"
 include(":app")
+include(":domain")
+include(":data")
+include(":core:player")
+// ref/NewPipe and ref/Tubular are read-only references and must never be included here.
