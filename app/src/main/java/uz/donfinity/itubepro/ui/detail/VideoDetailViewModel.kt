@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import uz.donfinity.itubepro.core.player.PlayerConnection
+import uz.donfinity.itubepro.core.player.VideoQuality
 import uz.donfinity.itubepro.domain.error.AppException
 import uz.donfinity.itubepro.domain.model.VideoDetails
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
@@ -37,6 +38,11 @@ data class DetailPlayerState(
     /** True when this screen's video is the one loaded in the player. */
     val isCurrent: Boolean = false,
     val audioOnly: Boolean = false,
+    /** A video track is playing (false in audio-only mode or before tracks are known). */
+    val hasVideo: Boolean = false,
+    val qualities: List<VideoQuality> = emptyList(),
+    val selectedQuality: VideoQuality? = null,
+    val playingHeight: Int = 0,
 )
 
 /**
@@ -62,7 +68,16 @@ class VideoDetailViewModel @Inject constructor(
         playerConnection.state,
         settings.audioOnly,
     ) { controller, nowPlaying, audioOnly ->
-        DetailPlayerState(player = controller, isCurrent = nowPlaying.mediaId == url, audioOnly = audioOnly)
+        val isCurrent = nowPlaying.mediaId == url
+        DetailPlayerState(
+            player = controller,
+            isCurrent = isCurrent,
+            audioOnly = audioOnly,
+            hasVideo = isCurrent && nowPlaying.hasVideo,
+            qualities = if (isCurrent) nowPlaying.qualities else emptyList(),
+            selectedQuality = nowPlaying.selectedQuality.takeIf { isCurrent },
+            playingHeight = if (isCurrent) nowPlaying.videoHeight else 0,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailPlayerState())
 
     private var loadJob: Job? = null
@@ -82,6 +97,8 @@ class VideoDetailViewModel @Inject constructor(
             artworkUrl = details.thumbnailUrl,
         )
     }
+
+    fun onSelectQuality(quality: VideoQuality?) = playerConnection.selectQuality(quality)
 
     fun onToggleAudioOnly() {
         viewModelScope.launch { settings.setAudioOnly(!settings.audioOnly.first()) }

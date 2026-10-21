@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.dash.manifest.DashManifestParser
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -40,6 +41,7 @@ internal class YoutubeMediaSourceFactory(context: Context) : MediaSource.Factory
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
         val source = mediaItem.localConfiguration?.tag as? PlaybackSource
             ?: return fallback.createMediaSource(mediaItem)
+        source.liveHls?.let { return buildLiveSource(it, mediaItem) }
 
         val children = listOfNotNull(source.video, source.audio).map { buildTrackSource(it, mediaItem) }
         return if (children.size == 1) {
@@ -69,6 +71,18 @@ internal class YoutubeMediaSourceFactory(context: Context) : MediaSource.Factory
         }
     }
 
+    /** A live HLS playlist already contains all qualities, plus audio, so no merging is needed. */
+    private fun buildLiveSource(track: PlaybackTrack, mediaItem: MediaItem): MediaSource {
+        val dataSourceFactory = YoutubeDataSourceFactory(
+            track.httpHeaders,
+            rangeAsQueryParameter = false,
+            addRequestNumber = false,
+        )
+        return HlsMediaSource.Factory(dataSourceFactory)
+            .setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
+            .createMediaSource(mediaItem.buildUpon().setUri(track.url).build())
+    }
+
     override fun setDrmSessionManagerProvider(provider: DrmSessionManagerProvider): MediaSource.Factory {
         fallback.setDrmSessionManagerProvider(provider)
         return this
@@ -80,7 +94,8 @@ internal class YoutubeMediaSourceFactory(context: Context) : MediaSource.Factory
         return this
     }
 
-    override fun getSupportedTypes(): IntArray = intArrayOf(C.CONTENT_TYPE_DASH, C.CONTENT_TYPE_OTHER)
+    override fun getSupportedTypes(): IntArray =
+        intArrayOf(C.CONTENT_TYPE_DASH, C.CONTENT_TYPE_HLS, C.CONTENT_TYPE_OTHER)
 }
 
 /**

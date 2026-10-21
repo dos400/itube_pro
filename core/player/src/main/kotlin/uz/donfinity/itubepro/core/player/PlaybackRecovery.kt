@@ -15,7 +15,7 @@ import uz.donfinity.itubepro.core.player.media.isHttpForbidden
 import uz.donfinity.itubepro.domain.error.AppException
 
 /**
- * Recovers from the two errors background playback actually hits:
+ * Recovers from the errors background playback actually hits:
  *
  * 1. **HTTP 403.** Stream URLs expire after about 6 h and contain `ip=<your IP>`, so they
  *    also break when the phone switches between Wi-Fi and mobile data. Fix: extract again
@@ -23,6 +23,8 @@ import uz.donfinity.itubepro.domain.error.AppException
  *    A cooldown per video stops a loop if fresh URLs fail too.
  * 2. **Network failures** (connection lost/timeout) after ExoPlayer's own retries gave up.
  *    Fix: re-prepare a few times with growing delays.
+ * 3. **Behind live window.** A paused live stream falls out of the server's buffer.
+ *    Fix: jump back to the live edge (same as ref/NewPipe Player.java).
  *
  * Inspired by ref/NewPipe/.../player/Player.java onPlayerError (setRecovery +
  * reloadPlayQueueManager), but limited to the errors where retrying can help.
@@ -42,6 +44,10 @@ internal class PlaybackRecovery(
     override fun onPlayerError(error: PlaybackException) {
         val item = player.currentMediaItem ?: return
         when {
+            error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> {
+                player.seekToDefaultPosition()
+                player.prepare()
+            }
             error.isHttpForbidden() -> refreshStreams(player.currentMediaItemIndex, item)
             error.errorCode in RETRYABLE_NETWORK_ERRORS && networkRetries < MAX_NETWORK_RETRIES -> retryLater()
         }

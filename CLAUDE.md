@@ -151,3 +151,31 @@ Errors: 403 → PlaybackRecovery re-resolves (forceRefresh) + seeks back; networ
 - Verified on the emulator (API 37): 720p H.264 + Opus merged, seek, audio-only, foreground
   service + MediaStyle notification, Home, screen off, swipe while playing (keeps going), swipe
   while paused (service stops, notification removed), media keys, battery exemption dialog.
+
+### Phase 4 – Quality, fullscreen, gestures, mini-player, PiP (+ HLS live)
+- **Quality = one AdaptationSet.** `DashManifestMerger` combines NewPipe's one-stream-per-MPD
+  manifests into a single AdaptationSet (one Representation per quality). ExoPlayer then
+  does ABR "Auto", and a manual pick is just a `TrackSelectionOverride`: verified with 0
+  re-prepares. ref/NewPipe rebuilds the whole source to change quality.
+- One codec family per AdaptationSet (H.264 preferred if it reaches 1080p). ExoPlayer won't
+  adapt smoothly across codecs.
+- **Android's XML parser ≠ desktop JDK.** `setFeature(".../disallow-doctype-decl")` works on the
+  JVM (unit test passed) but throws on Android, and the silent fallback hid it. Lesson: log
+  every fallback, and run XML/regex/charset code on a device once.
+- **Media3 1.11 MediaController did not receive `COMMAND_SET_DEVICE_VOLUME*`**, even though the
+  service player had it (`setDeviceVolumeControlEnabled(true)`) and our controller was
+  trusted (overriding `onConnect` didn't help). The volume gesture uses `AudioManager`
+  (STREAM_MUSIC) instead, like NewPipe's AudioReactor.
+- With no surface attached, `videoSize` stays 0. In tests, check the *selected track*.
+- Gestures live in a View (`GesturePlayerLayout.dispatchTouchEvent`), not a Compose overlay,
+  so PlayerView's own controls keep receiving taps. We only take over (with a CANCEL to the
+  child) once a vertical drag or a double-tap is detected.
+- Only one video surface at a time: the detail screen hides its PlayerView in fullscreen/PiP,
+  and the mini-player shows artwork on the playing video's detail screen.
+  `PlayerView.setPlayer(null)` only clears its own surface, so swapping views is safe.
+- PiP: `setAutoEnterEnabled` (12+) / `onUserLeaveHint` (8–11), `setSourceRectHint` from the
+  main player's bounds, `configChanges` on the activity so PiP/rotation don't recreate it.
+  NewPipe/Tubular have no PiP (they use a SYSTEM_ALERT_WINDOW popup).
+- Live: YouTube live = HLS only (`media3-exoplayer-hls`). NewPipe disables `rn`/`range` for HLS.
+  `ERROR_CODE_BEHIND_LIVE_WINDOW` → `seekToDefaultPosition()` + `prepare()`.
+- **Testing:** don't run the emulator on the dev Mac (overheats). Verify on a real phone.

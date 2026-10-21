@@ -14,6 +14,11 @@ data class PlaybackSource(
     /** Video track, or a muxed video+audio stream when [audio] is null. Null for audio-only content. */
     val video: PlaybackTrack?,
     val audio: PlaybackTrack?,
+    /**
+     * Live streams only: an HLS master playlist containing all qualities, with audio and
+     * video together. When set, [video] and [audio] are null.
+     */
+    val liveHls: PlaybackTrack? = null,
 )
 
 data class PlaybackTrack(

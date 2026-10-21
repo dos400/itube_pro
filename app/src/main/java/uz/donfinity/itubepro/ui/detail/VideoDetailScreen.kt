@@ -2,14 +2,21 @@ package uz.donfinity.itubepro.ui.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.ui.graphics.Color
+import uz.donfinity.itubepro.ui.player.FullscreenPlayer
+import uz.donfinity.itubepro.ui.player.LocalInPictureInPicture
+import uz.donfinity.itubepro.ui.player.QualitySheet
 import uz.donfinity.itubepro.ui.player.VideoPlayer
+import uz.donfinity.itubepro.ui.player.qualityButtonLabel
 import uz.donfinity.itubepro.ui.player.rememberPlayWithNotificationPermission
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,15 +83,52 @@ fun VideoDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playerState by viewModel.playerState.collectAsStateWithLifecycle()
     val onPlay = rememberPlayWithNotificationPermission(viewModel::onPlay)
+    // UI-only state; rememberSaveable keeps it if the process is recreated.
+    var fullscreen by rememberSaveable { mutableStateOf(false) }
+    var showQualities by rememberSaveable { mutableStateOf(false) }
+    val inPip = LocalInPictureInPicture.current
+
     VideoDetailContent(
         state = state,
         playerState = playerState,
+        // While fullscreen or in PiP another view shows the video; don't attach a second surface.
+        showInlineVideo = !fullscreen && !inPip,
         onBack = onBack,
         onRetry = viewModel::onRetry,
         onPlay = onPlay,
+        onEnterFullscreen = { fullscreen = true },
+        onQualityClick = { showQualities = true },
         onToggleAudioOnly = viewModel::onToggleAudioOnly,
         onVideoClick = onVideoClick,
     )
+
+    val player = playerState.player
+    if (fullscreen && !inPip && player != null && playerState.hasVideo) {
+        FullscreenPlayer(
+            player = player,
+            qualities = playerState.qualities,
+            selectedQuality = playerState.selectedQuality,
+            playingHeight = playerState.playingHeight,
+            onSelectQuality = viewModel::onSelectQuality,
+            onExit = { fullscreen = false },
+        )
+    } else if (fullscreen && !inPip && !playerState.hasVideo) {
+        // e.g. switched to audio only or playback stopped: nothing to show fullscreen.
+        LaunchedEffect(Unit) { fullscreen = false }
+    }
+
+    if (showQualities && playerState.qualities.isNotEmpty()) {
+        QualitySheet(
+            qualities = playerState.qualities,
+            selected = playerState.selectedQuality,
+            playingHeight = playerState.playingHeight,
+            onSelect = {
+                viewModel.onSelectQuality(it)
+                showQualities = false
+            },
+            onDismiss = { showQualities = false },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,9 +136,12 @@ fun VideoDetailScreen(
 private fun VideoDetailContent(
     state: VideoDetailUiState,
     playerState: DetailPlayerState,
+    showInlineVideo: Boolean,
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onPlay: () -> Unit,
+    onEnterFullscreen: () -> Unit,
+    onQualityClick: () -> Unit,
     onToggleAudioOnly: () -> Unit,
     onVideoClick: (String) -> Unit,
 ) {
@@ -119,8 +167,11 @@ private fun VideoDetailContent(
             is VideoDetailUiState.Content -> DetailsList(
                 details = state.details,
                 playerState = playerState,
+                showInlineVideo = showInlineVideo,
                 padding = padding,
                 onPlay = onPlay,
+                onEnterFullscreen = onEnterFullscreen,
+                onQualityClick = onQualityClick,
                 onToggleAudioOnly = onToggleAudioOnly,
                 onVideoClick = onVideoClick,
             )
@@ -132,22 +183,29 @@ private fun VideoDetailContent(
 private fun DetailsList(
     details: VideoDetails,
     playerState: DetailPlayerState,
+    showInlineVideo: Boolean,
     padding: PaddingValues,
     onPlay: () -> Unit,
+    onEnterFullscreen: () -> Unit,
+    onQualityClick: () -> Unit,
     onToggleAudioOnly: () -> Unit,
     onVideoClick: (String) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item(key = "player") {
             val player = playerState.player
-            if (playerState.isCurrent && !playerState.audioOnly && player != null) {
-                VideoPlayer(player)
+            if (playerState.isCurrent && !playerState.audioOnly && player != null && showInlineVideo) {
+                VideoPlayer(
+                    player = player,
+                    onFullscreenClick = onEnterFullscreen,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                )
             } else {
                 PlayableThumbnail(details, playerState, onPlay)
             }
         }
         item(key = "header") { Header(details) }
-        item(key = "actions") { PlaybackActions(playerState, onPlay, onToggleAudioOnly) }
+        item(key = "actions") { PlaybackActions(playerState, onPlay, onQualityClick, onToggleAudioOnly) }
         item(key = "channel") { ChannelRow(details) }
         if (details.description.content.isNotBlank()) {
             item(key = "description") { DescriptionCard(details.description) }
@@ -178,7 +236,7 @@ private fun PlayableThumbnail(details: VideoDetails, playerState: DetailPlayerSt
             cornerRadius = 0.dp,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (playerState.isCurrent) {
+        if (playerState.isCurrent && playerState.audioOnly) {
             Text(
                 stringResource(R.string.detail_playing_audio_only),
                 style = MaterialTheme.typography.labelLarge,
@@ -187,7 +245,7 @@ private fun PlayableThumbnail(details: VideoDetails, playerState: DetailPlayerSt
                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
-        } else {
+        } else if (!playerState.isCurrent) {
             FilledIconButton(onClick = onPlay, modifier = Modifier.size(64.dp)) {
                 Icon(Icons.Filled.PlayArrow, stringResource(R.string.action_play), Modifier.size(36.dp))
             }
@@ -196,7 +254,12 @@ private fun PlayableThumbnail(details: VideoDetails, playerState: DetailPlayerSt
 }
 
 @Composable
-private fun PlaybackActions(playerState: DetailPlayerState, onPlay: () -> Unit, onToggleAudioOnly: () -> Unit) {
+private fun PlaybackActions(
+    playerState: DetailPlayerState,
+    onPlay: () -> Unit,
+    onQualityClick: () -> Unit,
+    onToggleAudioOnly: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -207,6 +270,13 @@ private fun PlaybackActions(playerState: DetailPlayerState, onPlay: () -> Unit, 
                 Icon(Icons.Filled.PlayArrow, contentDescription = null, Modifier.size(18.dp))
                 Text(stringResource(R.string.action_play), Modifier.padding(start = 6.dp))
             }
+        }
+        if (playerState.qualities.isNotEmpty() && !playerState.audioOnly) {
+            AssistChip(
+                onClick = onQualityClick,
+                label = { Text(qualityButtonLabel(playerState.selectedQuality, playerState.playingHeight)) },
+                leadingIcon = { Icon(Icons.Outlined.Tune, contentDescription = null, Modifier.size(18.dp)) },
+            )
         }
         FilterChip(
             selected = playerState.audioOnly,

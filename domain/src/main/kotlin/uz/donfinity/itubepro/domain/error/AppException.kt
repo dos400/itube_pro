@@ -28,7 +28,7 @@ sealed class AppException(message: String?, cause: Throwable?) : Exception(messa
      */
     class Parsing(cause: Throwable? = null) : AppException(cause?.message, cause)
 
-    /** Live streams need HLS playback, which we don't support yet. */
+    /** A live stream without a playable (HLS) manifest. */
     class LiveNotSupported(cause: Throwable? = null) : AppException(cause?.message, cause)
 
     class Unknown(cause: Throwable? = null) : AppException(cause?.message, cause)

@@ -6,9 +6,12 @@ import android.net.Uri
 import androidx.annotation.MainThread
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.session.MediaController
@@ -18,6 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -25,6 +29,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import uz.donfinity.itubepro.domain.error.AppException
+
+/** One selectable video quality of the current item. */
+data class VideoQuality(
+    val height: Int,
+    val frameRate: Float,
+    internal val trackGroup: TrackGroup,
+    internal val trackIndex: Int,
+) {
+    /** "720p", or "720p60" for high frame rate. */
+    val label: String get() = if (frameRate > 30f) "${height}p${frameRate.roundToInt()}" else "${height}p"
+}
 
 /** What the UI shows about the current playback. */
 data class NowPlayingState(
@@ -37,6 +52,16 @@ data class NowPlayingState(
     val isBuffering: Boolean = false,
     /** The player stopped with an error (e.g. 403 even after re-extraction). */
     val hasError: Boolean = false,
+    val isLive: Boolean = false,
+    /** True when the current item has a video track selected (false in audio-only mode). */
+    val hasVideo: Boolean = false,
+    /** Size of the video being rendered right now, 0 when unknown (used for PiP aspect ratio). */
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0,
+    /** Qualities the user can pick, lowest first. Empty when there's nothing to choose. */
+    val qualities: List<VideoQuality> = emptyList(),
+    /** The user's manual pick, or null for "Auto" (adaptive). */
+    val selectedQuality: VideoQuality? = null,
 )
 
 /**
@@ -134,6 +159,34 @@ class PlayerConnection @Inject constructor(
         _controller.value?.let { Util.handlePlayPauseButtonAction(it) }
     }
 
+    /** Position as a 0..1 fraction of the duration, or null if unknown (e.g. live). For progress bars. */
+    @MainThread
+    fun progress(): Float? {
+        val controller = _controller.value ?: return null
+        val duration = controller.duration
+        if (duration == C.TIME_UNSET || duration <= 0 || controller.isCurrentMediaItemLive) return null
+        return (controller.currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+    }
+
+    /**
+     * Picks a fixed quality, or `null` for Auto. All qualities live in one track group, so this
+     * is only a track-selection change: the player switches at the next segment, with no
+     * re-buffering. Compare ref/NewPipe, which rebuilds the whole media source.
+     */
+    @MainThread
+    fun selectQuality(quality: VideoQuality?) {
+        val controller = _controller.value ?: return
+        controller.trackSelectionParameters = controller.trackSelectionParameters.buildUpon()
+            .apply {
+                if (quality == null) {
+                    clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                } else {
+                    setOverrideForType(TrackSelectionOverride(quality.trackGroup, quality.trackIndex))
+                }
+            }
+            .build()
+    }
+
     /** Clears the queue. The service then stops itself and the notification goes away. */
     @MainThread
     fun stop() {
@@ -151,6 +204,7 @@ class PlayerConnection @Inject constructor(
 
     private fun Player.toState(): NowPlayingState {
         val item = currentMediaItem ?: return NowPlayingState()
+        val (qualities, selected) = videoQualities()
         return NowPlayingState(
             mediaId = item.mediaId,
             title = mediaMetadata.title?.toString(),
@@ -159,6 +213,28 @@ class PlayerConnection @Inject constructor(
             isPlaying = isPlaying,
             isBuffering = playbackState == Player.STATE_BUFFERING,
             hasError = playerError != null,
+            isLive = isCurrentMediaItemLive,
+            hasVideo = currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO),
+            videoWidth = videoSize.width,
+            videoHeight = videoSize.height,
+            qualities = qualities,
+            selectedQuality = selected,
         )
+    }
+
+    /** Reads the video track group and any manual override from the current tracks. */
+    private fun Player.videoQualities(): Pair<List<VideoQuality>, VideoQuality?> {
+        val group = currentTracks.groups.firstOrNull { it.type == C.TRACK_TYPE_VIDEO } ?: return emptyList<VideoQuality>() to null
+        val qualities = (0 until group.length)
+            .filter { group.isTrackSupported(it) }
+            .map { i ->
+                val format = group.getTrackFormat(i)
+                VideoQuality(format.height, format.frameRate, group.mediaTrackGroup, i)
+            }
+            .sortedWith(compareBy<VideoQuality> { it.height }.thenBy { it.frameRate })
+        val override = trackSelectionParameters.overrides[group.mediaTrackGroup]
+        val selected = override?.trackIndices?.singleOrNull()?.let { index -> qualities.firstOrNull { it.trackIndex == index } }
+        // A single quality (e.g. a muxed fallback) is nothing to choose from.
+        return (if (qualities.size > 1) qualities else emptyList()) to selected
     }
 }

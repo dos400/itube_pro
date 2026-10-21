@@ -24,11 +24,15 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * One factory per track, because each track may need different headers ([headers] comes
  * from the data layer, which knows which YouTube client the URL belongs to).
+ *
+ * For HLS (live) NewPipe turns off both `rn` and the range parameter
+ * (ref/NewPipe/.../player/helper/PlayerDataSource.java, ytHlsCacheDataSourceFactory).
  */
 @OptIn(UnstableApi::class)
 internal class YoutubeDataSourceFactory(
     headers: Map<String, String>,
     private val rangeAsQueryParameter: Boolean,
+    private val addRequestNumber: Boolean = true,
 ) : DataSource.Factory {
 
     private val requestNumber = AtomicLong(0)
@@ -49,7 +53,9 @@ internal class YoutubeDataSourceFactory(
 
         val url = StringBuilder(spec.uri.toString())
         // DASH manifests sometimes already contain rn; don't add it twice.
-        if (!url.contains(RN_PARAM)) url.append(RN_PARAM).append(requestNumber.getAndIncrement())
+        if (addRequestNumber && !url.contains(RN_PARAM)) {
+            url.append(RN_PARAM).append(requestNumber.getAndIncrement())
+        }
 
         val builder = spec.buildUpon()
             .setHttpMethod(DataSpec.HTTP_METHOD_POST)

@@ -1,5 +1,6 @@
 package uz.donfinity.itubepro.data.repository
 
+import android.util.Log
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import org.schabi.newpipe.extractor.Image
@@ -14,6 +15,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
 import uz.donfinity.itubepro.data.cache.StreamInfoCache
 import uz.donfinity.itubepro.data.di.IoDispatcher
+import uz.donfinity.itubepro.data.mapper.DashManifestMerger
 import uz.donfinity.itubepro.data.mapper.allStreams
 import uz.donfinity.itubepro.data.mapper.isLive
 import uz.donfinity.itubepro.data.mapper.preferredUrl
@@ -26,8 +28,8 @@ import uz.donfinity.itubepro.domain.repository.PlaybackRepository
 import uz.donfinity.itubepro.domain.usecase.StreamSelector
 
 /**
- * Turns a video URL into a [PlaybackSource]: extract → pick streams → generate DASH manifests →
- * work out the HTTP headers each stream needs.
+ * Turns a video URL into a [PlaybackSource]: extract → pick streams → generate DASH manifests
+ * (all video qualities merged into one) → work out the HTTP headers each stream needs.
  */
 class NewPipePlaybackRepository @Inject constructor(
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
@@ -44,15 +46,15 @@ class NewPipePlaybackRepository @Inject constructor(
                 ?: StreamInfo.getInfo(youtube, videoUrl).also { cache.put(videoUrl, it) }
 
             // Live streams only come with an HLS manifest (verified in Phase 2).
-            if (info.streamType.isLive()) throw AppException.LiveNotSupported()
+            if (info.streamType.isLive()) return@extract info.toLiveSource(videoUrl)
 
             // Selection is a pure domain rule; we only translate the result back to the
             // NewPipe streams, whose ItagItem we need for manifest generation.
             val streams = info.allStreams()
             val selection = StreamSelector.select(info.toExtractedVideo().streams)
-            val video = selection.video?.let { streams[it.id.toInt()] }
+            val videos = selection.videos.map { streams[it.id.toInt()] }
             val audio = selection.audio?.let { streams[it.id.toInt()] }
-            if (video == null && audio == null) throw AppException.Unavailable()
+            if (videos.isEmpty() && audio == null) throw AppException.Unavailable()
 
             PlaybackSource(
                 videoUrl = videoUrl,
@@ -60,10 +62,51 @@ class NewPipePlaybackRepository @Inject constructor(
                 uploaderName = info.uploaderName.orEmpty(),
                 thumbnailUrl = info.thumbnails.preferredUrl(Image.ResolutionLevel.HIGH),
                 durationSeconds = info.duration.takeIf { it > 0 },
-                video = video?.toTrack(info),
+                video = videos.toVideoTrack(info),
                 audio = audio?.toTrack(info),
             )
         }
+
+    private fun StreamInfo.toLiveSource(videoUrl: String): PlaybackSource {
+        val hls = hlsUrl.takeIf { it.isNotEmpty() } ?: throw AppException.LiveNotSupported()
+        return PlaybackSource(
+            videoUrl = videoUrl,
+            title = name,
+            uploaderName = uploaderName.orEmpty(),
+            thumbnailUrl = thumbnails.preferredUrl(Image.ResolutionLevel.HIGH),
+            durationSeconds = null,
+            video = null,
+            audio = null,
+            liveHls = PlaybackTrack(url = hls, dashManifest = null, httpHeaders = headersFor(hls), label = "live HLS"),
+        )
+    }
+
+    /**
+     * All selected qualities as one track. Their manifests are merged so the player can switch
+     * quality without re-buffering. Streams whose manifest can't be generated are dropped. If
+     * none works, play the best one as a progressive file.
+     */
+    private fun List<Stream>.toVideoTrack(info: StreamInfo): PlaybackTrack? {
+        if (isEmpty()) return null
+        val withManifest = mapNotNull { stream -> createDashManifest(stream, info.duration)?.let { stream to it } }
+        if (withManifest.isEmpty()) return last().toTrack(info) // sorted low → high
+        val (lowest, _) = withManifest.first()
+        val highest = withManifest.last().first as VideoStream
+        val merged = runCatching { DashManifestMerger.merge(withManifest.map { it.second }) }
+            .getOrElse { e ->
+                // Still playable, just without quality switching. Log it: a silent fallback
+                // once hid an Android-only XML parser difference (see CLAUDE.md, Phase 4).
+                Log.w(TAG, "Merging ${withManifest.size} video manifests failed; using the best one only", e)
+                return withManifest.last().first.toTrack(info)
+            }
+        return PlaybackTrack(
+            url = lowest.content,
+            dashManifest = merged,
+            // All qualities come from the same YouTube client, so they share headers.
+            httpHeaders = headersFor(lowest.content),
+            label = "${withManifest.size} qualities up to ${highest.getResolution()} ${highest.codec}",
+        )
+    }
 
     private fun Stream.toTrack(info: StreamInfo) = PlaybackTrack(
         url = content,
@@ -123,6 +166,7 @@ class NewPipePlaybackRepository @Inject constructor(
     }
 
     private companion object {
+        const val TAG = "PlaybackRepository"
         const val YOUTUBE_ORIGIN = "https://www.youtube.com"
     }
 }

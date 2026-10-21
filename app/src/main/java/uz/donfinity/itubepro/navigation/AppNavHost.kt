@@ -3,11 +3,13 @@ package uz.donfinity.itubepro.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -17,12 +19,18 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import uz.donfinity.itubepro.ui.debug.DebugExtractionScreen
 import uz.donfinity.itubepro.ui.detail.VideoDetailScreen
+import uz.donfinity.itubepro.ui.player.LocalInPictureInPicture
 import uz.donfinity.itubepro.ui.player.NowPlayingBar
 import uz.donfinity.itubepro.ui.player.NowPlayingViewModel
+import uz.donfinity.itubepro.ui.player.VideoPlayer
+import uz.donfinity.itubepro.ui.player.rememberIsInPictureInPictureMode
 import uz.donfinity.itubepro.ui.search.SearchScreen
 import uz.donfinity.itubepro.ui.settings.SettingsScreen
 
@@ -46,14 +54,25 @@ data object SettingsRoute
 data object DebugRoute
 
 /**
- * App shell: the NavHost plus the global "now playing" bar and playback error snackbar.
- * Created outside any destination, so its ViewModel lives as long as the Activity.
+ * App shell: the NavHost plus the global mini-player, playback error snackbar and the
+ * Picture-in-Picture video. Created outside any destination, so its ViewModel lives as long
+ * as the Activity.
  */
 @Composable
 fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val nowPlaying by nowPlayingViewModel.state.collectAsStateWithLifecycle()
+    val player by nowPlayingViewModel.player.collectAsStateWithLifecycle()
+    val progress by nowPlayingViewModel.progress.collectAsStateWithLifecycle()
+    val inPip = rememberIsInPictureInPictureMode()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // The detail screen of the playing video shows the video itself, so the mini-player
+    // shows only artwork there. Only one surface can be attached to a player at a time.
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val onPlayingDetail = backStackEntry?.let { entry ->
+        entry.destination.hasRoute<VideoDetailRoute>() && entry.toRoute<VideoDetailRoute>().url == nowPlaying.mediaId
+    } == true
     // LocalResources (not LocalContext) so the text follows configuration changes like
     // switching the device language while the app is open.
     val resources = LocalResources.current
@@ -68,6 +87,8 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
             AnimatedVisibility(visible = nowPlaying.mediaId != null) {
                 NowPlayingBar(
                     state = nowPlaying,
+                    videoPlayer = player?.takeIf { nowPlaying.hasVideo && !onPlayingDetail && !inPip },
+                    progress = progress,
                     onClick = {
                         nowPlaying.mediaId?.let { navController.navigate(VideoDetailRoute(it)) { launchSingleTop = true } }
                     },
@@ -79,33 +100,42 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
         // Screens handle the system bars themselves (each has its own Scaffold/insets).
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = SearchRoute,
-            // padding = height of the now-playing bar (which already covers the navigation
-            // bar). consumeWindowInsets tells nested screens not to pad for the navigation
-            // bar a second time.
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
-        ) {
-            composable<SearchRoute> {
-                SearchScreen(
-                    onVideoClick = { navController.navigate(VideoDetailRoute(it)) },
-                    onOpenSettings = { navController.navigate(SettingsRoute) },
-                )
+        CompositionLocalProvider(LocalInPictureInPicture provides inPip) {
+            NavHost(
+                navController = navController,
+                startDestination = SearchRoute,
+                // padding = height of the now-playing bar (which already covers the navigation
+                // bar). consumeWindowInsets tells nested screens not to pad for the navigation
+                // bar a second time.
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            ) {
+                composable<SearchRoute> {
+                    SearchScreen(
+                        onVideoClick = { navController.navigate(VideoDetailRoute(it)) },
+                        onOpenSettings = { navController.navigate(SettingsRoute) },
+                    )
+                }
+                composable<VideoDetailRoute> {
+                    VideoDetailScreen(
+                        onBack = { navController.popBackStack() },
+                        onVideoClick = { navController.navigate(VideoDetailRoute(it)) },
+                    )
+                }
+                composable<SettingsRoute> {
+                    SettingsScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenDebug = { navController.navigate(DebugRoute) },
+                    )
+                }
+                composable<DebugRoute> { DebugExtractionScreen() }
             }
-            composable<VideoDetailRoute> {
-                VideoDetailScreen(
-                    onBack = { navController.popBackStack() },
-                    onVideoClick = { navController.navigate(VideoDetailRoute(it)) },
-                )
-            }
-            composable<SettingsRoute> {
-                SettingsScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenDebug = { navController.navigate(DebugRoute) },
-                )
-            }
-            composable<DebugRoute> { DebugExtractionScreen() }
         }
+    }
+
+    // PiP: the window is tiny, so show only the video, drawn over everything else. The
+    // screens stay composed underneath (keeping their state) but hide their own video.
+    val pipPlayer = player
+    if (inPip && pipPlayer != null) {
+        VideoPlayer(player = pipPlayer, useController = false, modifier = Modifier.fillMaxSize())
     }
 }

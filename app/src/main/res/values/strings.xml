@@ -41,6 +41,15 @@
 
     <!-- Player -->
     <string name="player_error_short">Playback failed. Tap retry.</string>
+    <string name="quality_title">Quality</string>
+    <string name="quality_auto">Auto</string>
+    <string name="quality_auto_short">Auto (%1$s)</string>
+    <string name="quality_auto_current">Adapts to your connection · now %1$s</string>
+    <string name="quality_selected">Selected</string>
+    <string name="gesture_volume">Volume</string>
+    <string name="gesture_brightness">Brightness</string>
+    <string name="gesture_seek_forward">+10 s</string>
+    <string name="gesture_seek_back">−10 s</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -58,7 +67,7 @@
     <string name="error_geo_restricted">This video isn\'t available in your country.</string>
     <string name="error_unavailable">This video is unavailable (private, removed or paid).</string>
     <string name="error_parsing">Couldn\'t read YouTube\'s response. The extractor may need an update.</string>
-    <string name="error_live_not_supported">Live streams aren\'t supported yet.</string>
+    <string name="error_live_not_supported">This live stream can\'t be played.</string>
     <string name="error_unknown">Something went wrong.</string>
 
     <!-- Debug extraction screen -->

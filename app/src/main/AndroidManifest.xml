@@ -18,10 +18,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ItubePro">
+        <!-- configChanges: Compose re-lays out on rotation/resizes by itself, so the activity
+             isn't recreated. That keeps entering/leaving PiP and fullscreen landscape smooth
+             (no flash, the PlayerView surface stays attached). State still survives process
+             death via SavedStateHandle/rememberSaveable. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden"
             android:exported="true"
             android:label="@string/app_name"
+            android:supportsPictureInPicture="true"
             android:theme="@style/Theme.ItubePro"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
