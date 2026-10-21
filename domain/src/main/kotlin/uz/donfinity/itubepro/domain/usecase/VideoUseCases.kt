@@ -2,6 +2,7 @@ package uz.donfinity.itubepro.domain.usecase
 
 import uz.donfinity.itubepro.domain.error.AppException
 import uz.donfinity.itubepro.domain.model.ExtractedVideo
+import uz.donfinity.itubepro.domain.model.VideoDetails
 import uz.donfinity.itubepro.domain.repository.VideoRepository
 
 /**
@@ -16,4 +17,11 @@ class GetVideoStreamsUseCase(private val repository: VideoRepository) {
         if (trimmed.isEmpty()) throw AppException.InvalidUrl()
         return repository.getVideo(trimmed)
     }
+}
+
+class GetVideoDetailsUseCase(private val repository: VideoRepository) {
+
+    /** @throws AppException */
+    suspend operator fun invoke(url: String, forceRefresh: Boolean = false): VideoDetails =
+        repository.getDetails(url, forceRefresh)
 }

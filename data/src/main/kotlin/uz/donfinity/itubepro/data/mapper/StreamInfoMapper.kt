@@ -1,11 +1,15 @@
 package uz.donfinity.itubepro.data.mapper
 
+import org.schabi.newpipe.extractor.Image
 import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.Description as NewPipeDescription
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
+import uz.donfinity.itubepro.domain.model.Description
 import uz.donfinity.itubepro.domain.model.ExtractedVideo
 import uz.donfinity.itubepro.domain.model.MediaStream
+import uz.donfinity.itubepro.domain.model.VideoDetails
 
 internal fun StreamInfo.toExtractedVideo(): ExtractedVideo = ExtractedVideo(
     id = id,
@@ -21,6 +25,37 @@ internal fun StreamInfo.toExtractedVideo(): ExtractedVideo = ExtractedVideo(
         videoOnlyStreams.map { it.toMediaStream() } +
         audioStreams.map { it.toMediaStream() },
 )
+
+internal fun StreamInfo.toVideoDetails(): VideoDetails {
+    val live = streamType.isLive()
+    return VideoDetails(
+        url = url,
+        title = name,
+        thumbnailUrl = thumbnails.preferredUrl(Image.ResolutionLevel.HIGH),
+        uploaderName = uploaderName.orEmpty(),
+        uploaderAvatarUrl = uploaderAvatars.preferredUrl(Image.ResolutionLevel.LOW),
+        uploaderVerified = isUploaderVerified,
+        // The extractor uses -1 for "unknown/hidden".
+        subscriberCount = uploaderSubscriberCount.takeIf { it >= 0 },
+        viewCount = viewCount.takeIf { it >= 0 },
+        likeCount = likeCount.takeIf { it >= 0 },
+        uploadDate = uploadDate?.instant,
+        durationSeconds = duration.takeIf { it > 0 && !live },
+        isLive = live,
+        description = description.toDomain(),
+        related = relatedItems.toVideoSummaries(),
+    )
+}
+
+private fun NewPipeDescription?.toDomain(): Description {
+    if (this == null) return Description("", Description.Format.PLAIN)
+    val format = when (type()) {
+        NewPipeDescription.Type.HTML -> Description.Format.HTML
+        NewPipeDescription.Type.MARKDOWN -> Description.Format.MARKDOWN
+        else -> Description.Format.PLAIN
+    }
+    return Description(content().orEmpty(), format)
+}
 
 // isVideoOnly()/getResolution() are called as methods on purpose: VideoStream also has
 // deprecated public fields with the same names, and Kotlin property syntax picks those.

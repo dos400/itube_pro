@@ -82,3 +82,27 @@ on every video.
 - YouTube currently returns **no muxed streams and no DASH manifest** for normal videos, only
   separate video-only + audio progressive streams. Phase 3 must merge them (or generate a DASH
   manifest the way ref/NewPipe's `PlaybackResolver` does).
+
+### Phase 2 – Search & video details
+- NewPipe's paging cursor (`Page`) is a NewPipe type, so it can't reach the UI. It's
+  `Serializable`, so `PageTokenCodec` turns it into a Base64 string inside a domain
+  `PageToken`. The repositories stay stateless. Tokens are never persisted, because they
+  break when the extractor version changes.
+- TextField state must update synchronously. Feed the field from
+  `SavedStateHandle.getStateFlow()` directly, not through `combine().stateIn()`, or fast
+  typing drops characters.
+- Suggestions: `debounce` → `distinctUntilChanged` → `mapLatest`. `mapLatest` cancels a
+  suggestion request that's still running when the next keystroke arrives.
+- Infinite scroll: `snapshotFlow { lastVisibleIndex to totalItemsCount }`. Including the
+  total re-triggers after each append. All guards (already loading, no next page, last
+  attempt failed) live in the ViewModel.
+- YouTube can repeat a video across pages. Duplicate `LazyColumn` keys crash, so results
+  are de-duplicated by URL.
+- `StreamInfoCache` (LRU 30 entries / 1 h, idea from ref/NewPipe InfoCache): detail screen +
+  player share one extraction (~1.5 s → 1 ms).
+- `AnnotatedString.fromHtml` gives clickable links in descriptions without WebView or
+  ClickableText.
+- Search items for **live streams report `VIDEO_STREAM`** with duration -1. Only the full
+  `StreamInfo` says `LIVE_STREAM` (HLS URL, no DASH). So lists can't show a LIVE badge,
+  and the player must check the full info's stream type.
+- Coil shares the app's OkHttpClient through `SingletonImageLoader.Factory` on the Application.

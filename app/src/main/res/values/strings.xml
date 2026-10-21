@@ -6,6 +6,34 @@
     <string name="yes">yes</string>
     <string name="no">no</string>
     <string name="unknown">unknown</string>
+    <string name="action_back">Back</string>
+    <string name="action_clear">Clear</string>
+    <string name="meta_separator">" · "</string>
+    <string name="badge_live">LIVE</string>
+
+    <plurals name="view_count">
+        <item quantity="one">%1$s view</item>
+        <item quantity="other">%1$s views</item>
+    </plurals>
+    <plurals name="subscriber_count">
+        <item quantity="one">%1$s subscriber</item>
+        <item quantity="other">%1$s subscribers</item>
+    </plurals>
+
+    <!-- Search -->
+    <string name="search_hint">Search YouTube</string>
+    <string name="search_idle">Search for a video to get started.</string>
+    <string name="search_empty">No results for “%1$s”.</string>
+    <string name="search_did_you_mean">Did you mean: %1$s</string>
+    <string name="search_showing_results_for">Showing results for: %1$s</string>
+    <string name="search_fill_suggestion">Use this suggestion</string>
+
+    <!-- Video detail -->
+    <string name="detail_related">Related videos</string>
+    <string name="detail_likes">Likes</string>
+    <string name="detail_verified">Verified channel</string>
+    <string name="detail_show_more">Show more</string>
+    <string name="detail_show_less">Show less</string>
 
     <!-- Errors -->
     <string name="error_network">No connection. Check your internet and try again.</string>

@@ -11,7 +11,9 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
+import uz.donfinity.itubepro.data.repository.NewPipeSearchRepository
 import uz.donfinity.itubepro.data.repository.NewPipeVideoRepository
+import uz.donfinity.itubepro.domain.repository.SearchRepository
 import uz.donfinity.itubepro.domain.repository.VideoRepository
 
 /** Marks the dispatcher for blocking I/O. Tests can swap in a test dispatcher. */
@@ -45,4 +47,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindVideoRepository(impl: NewPipeVideoRepository): VideoRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSearchRepository(impl: NewPipeSearchRepository): SearchRepository
 }
