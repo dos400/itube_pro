@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the black edge of ic_main.png, so the cropped logo blends into the icon background. -->
+    <color name="ic_launcher_background">#000000</color>
+</resources>
