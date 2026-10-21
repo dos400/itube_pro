@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -48,6 +49,7 @@ import uz.donfinity.itubepro.ui.channel.ChannelScreen
 import uz.donfinity.itubepro.ui.debug.DebugExtractionScreen
 import uz.donfinity.itubepro.ui.detail.VideoDetailScreen
 import uz.donfinity.itubepro.ui.feed.FeedScreen
+import uz.donfinity.itubepro.ui.home.HomeScreen
 import uz.donfinity.itubepro.ui.library.FavoritesScreen
 import uz.donfinity.itubepro.ui.library.HistoryScreen
 import uz.donfinity.itubepro.ui.library.LibraryScreen
@@ -69,6 +71,7 @@ import uz.donfinity.itubepro.ui.settings.SettingsScreen
  */
 
 // Top-level destinations (bottom navigation tabs)
+@Serializable data object HomeRoute
 @Serializable data object SearchRoute
 @Serializable data object FeedRoute
 @Serializable data object LibraryRoute
@@ -89,6 +92,7 @@ private enum class TopLevelTab(
     @param:StringRes val label: Int,
     val icon: ImageVector,
 ) {
+    HOME(HomeRoute, HomeRoute::class, R.string.tab_home, Icons.Filled.Home),
     SEARCH(SearchRoute, SearchRoute::class, R.string.tab_search, Icons.Filled.Search),
     FEED(FeedRoute, FeedRoute::class, R.string.tab_feed, Icons.Filled.Subscriptions),
     LIBRARY(LibraryRoute, LibraryRoute::class, R.string.tab_library, Icons.Filled.VideoLibrary),
@@ -110,7 +114,7 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
-    // Tabs show only on the three top-level screens, like most apps.
+    // Tabs show only on the top-level screens, like most apps.
     val showTabs = TopLevelTab.entries.any { destination.isOn(it.routeClass) }
     // The detail screen of the playing video shows the video itself, so the mini-player
     // shows only artwork there. Only one surface can be attached to a player at a time.
@@ -173,7 +177,7 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
         CompositionLocalProvider(LocalInPictureInPicture provides inPip) {
             NavHost(
                 navController = navController,
-                startDestination = SearchRoute,
+                startDestination = HomeRoute,
                 // padding = height of the bottom bar (mini-player and/or tabs, which already
                 // cover the navigation bar). consumeWindowInsets tells nested screens not to
                 // pad for the navigation bar a second time.
@@ -183,6 +187,7 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
                 val back: () -> Unit = { navController.popBackStack() }
                 val openChannel: (String) -> Unit = { navController.navigate(ChannelRoute(it)) }
 
+                composable<HomeRoute> { HomeScreen(onVideoClick = openVideo) }
                 composable<SearchRoute> {
                     SearchScreen(onVideoClick = openVideo, onOpenSettings = { navController.navigate(SettingsRoute) })
                 }

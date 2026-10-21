@@ -278,3 +278,14 @@ Resume happens in `PlaybackService.onSetMediaItems`.
 - Infinite scroll is shared: `ui/common/Paging.kt` (`AppendState`, `LoadMoreEffect`) is used by
   Search and Channel.
 - Ways in: the channel row on the video detail screen, and Library → Subscriptions.
+
+### Home / recommendations
+- No account, so "For you" is built on the phone (`GetRecommendationsUseCase`): seeds = the 3 latest
+  watched videos + 3 random picks from older history and favorites, then YouTube's related videos
+  for each seed. Recent seeds usually hit `StreamInfoCache`.
+- `RecommendationMixer` (domain, pure, unit-tested): round-robin across seeds so every interest
+  gets a spot near the top, skip watched videos, at most 3 per channel, every 4th slot a new
+  upload from subscriptions.
+- One failing seed doesn't fail the screen (errors are collected as `Result`s, not thrown).
+  Nothing to go on → trending kiosk (`NewPipeTrendingRepository`), falling back to `trending_music`
+  if the default kiosk fails or comes back empty.

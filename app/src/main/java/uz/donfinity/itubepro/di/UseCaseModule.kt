@@ -4,8 +4,13 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
+import uz.donfinity.itubepro.domain.repository.FavoritesRepository
+import uz.donfinity.itubepro.domain.repository.HistoryRepository
 import uz.donfinity.itubepro.domain.repository.SearchRepository
+import uz.donfinity.itubepro.domain.repository.SubscriptionRepository
+import uz.donfinity.itubepro.domain.repository.TrendingRepository
 import uz.donfinity.itubepro.domain.repository.VideoRepository
+import uz.donfinity.itubepro.domain.usecase.GetRecommendationsUseCase
 import uz.donfinity.itubepro.domain.usecase.GetSearchSuggestionsUseCase
 import uz.donfinity.itubepro.domain.usecase.GetVideoDetailsUseCase
 import uz.donfinity.itubepro.domain.usecase.GetVideoStreamsUseCase
@@ -31,4 +36,13 @@ object UseCaseModule {
 
     @Provides
     fun provideSearchVideos(repository: SearchRepository) = SearchVideosUseCase(repository)
+
+    @Provides
+    fun provideGetRecommendations(
+        history: HistoryRepository,
+        favorites: FavoritesRepository,
+        subscriptions: SubscriptionRepository,
+        videos: VideoRepository,
+        trending: TrendingRepository,
+    ) = GetRecommendationsUseCase(history, favorites, subscriptions, videos, trending)
 }

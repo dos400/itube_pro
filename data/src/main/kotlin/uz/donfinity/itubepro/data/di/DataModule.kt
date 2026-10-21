@@ -23,6 +23,7 @@ import uz.donfinity.itubepro.data.repository.NewPipeChannelRepository
 import uz.donfinity.itubepro.data.repository.NewPipePlaybackRepository
 import uz.donfinity.itubepro.data.repository.NewPipeSearchRepository
 import uz.donfinity.itubepro.data.repository.NewPipeSubscriptionRepository
+import uz.donfinity.itubepro.data.repository.NewPipeTrendingRepository
 import uz.donfinity.itubepro.data.repository.RoomFavoritesRepository
 import uz.donfinity.itubepro.data.repository.RoomHistoryRepository
 import uz.donfinity.itubepro.data.repository.RoomPlaylistRepository
@@ -38,6 +39,7 @@ import uz.donfinity.itubepro.domain.repository.SearchRepository
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
 import uz.donfinity.itubepro.domain.repository.SponsorBlockRepository
 import uz.donfinity.itubepro.domain.repository.SubscriptionRepository
+import uz.donfinity.itubepro.domain.repository.TrendingRepository
 import uz.donfinity.itubepro.domain.repository.VideoRepository
 
 /** Marks the dispatcher for blocking I/O. Tests can swap in a test dispatcher. */
@@ -119,4 +121,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindChannelRepository(impl: NewPipeChannelRepository): ChannelRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTrendingRepository(impl: NewPipeTrendingRepository): TrendingRepository
 }

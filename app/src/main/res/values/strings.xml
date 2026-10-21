@@ -79,6 +79,7 @@
     <string name="sb_category_filler">Filler tangent</string>
 
     <!-- Tabs -->
+    <string name="tab_home">Home</string>
     <string name="tab_search">Search</string>
     <string name="tab_feed">Feed</string>
     <string name="tab_library">Library</string>
@@ -120,6 +121,13 @@
     <string name="channel_unsubscribe">Unsubscribe</string>
     <string name="channel_videos">Videos</string>
     <string name="channel_no_videos">This channel has no videos.</string>
+
+    <!-- Home -->
+    <string name="home_for_you">For you</string>
+    <string name="home_for_you_summary">Based on what you watched, liked and subscribed to on this phone. Pull down for new picks.</string>
+    <string name="home_trending">Trending</string>
+    <string name="home_trending_summary">Watch a few videos and this turns into recommendations for you.</string>
+    <string name="home_empty">Nothing to recommend yet. Search for a video to get started.</string>
 
     <!-- Feed -->
     <string name="feed_title">Feed</string>
