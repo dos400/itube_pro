@@ -8,6 +8,9 @@
     <string name="unknown">unknown</string>
     <string name="action_back">Back</string>
     <string name="action_clear">Clear</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_stop">Stop</string>
     <string name="meta_separator">" · "</string>
     <string name="badge_live">LIVE</string>
 
@@ -34,6 +37,18 @@
     <string name="detail_verified">Verified channel</string>
     <string name="detail_show_more">Show more</string>
     <string name="detail_show_less">Show less</string>
+    <string name="detail_playing_audio_only">Playing audio only</string>
+
+    <!-- Player -->
+    <string name="player_error_short">Playback failed. Tap retry.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_audio_only">Audio only</string>
+    <string name="settings_audio_only_summary">Don\'t load video. Saves data and battery during background listening.</string>
+    <string name="settings_battery">Battery optimization</string>
+    <string name="settings_battery_restricted">Restricted. Android may stop playback with the screen off. Tap to allow background use.</string>
+    <string name="settings_battery_unrestricted">Unrestricted. Background playback is allowed.</string>
 
     <!-- Errors -->
     <string name="error_network">No connection. Check your internet and try again.</string>
@@ -43,6 +58,7 @@
     <string name="error_geo_restricted">This video isn\'t available in your country.</string>
     <string name="error_unavailable">This video is unavailable (private, removed or paid).</string>
     <string name="error_parsing">Couldn\'t read YouTube\'s response. The extractor may need an update.</string>
+    <string name="error_live_not_supported">Live streams aren\'t supported yet.</string>
     <string name="error_unknown">Something went wrong.</string>
 
     <!-- Debug extraction screen -->

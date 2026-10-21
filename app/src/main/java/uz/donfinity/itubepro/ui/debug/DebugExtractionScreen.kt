@@ -206,8 +206,16 @@ private fun DebugExtractionPreview() {
                     hlsManifestUrl = null,
                     streams = listOf(
                         MediaStream(
-                            MediaStream.Kind.VIDEO_ONLY, MediaStream.Delivery.PROGRESSIVE, "",
-                            "MPEG-4", "avc1.4d401e", "480p", 500_000, 480, null,
+                            id = "0",
+                            kind = MediaStream.Kind.VIDEO_ONLY,
+                            delivery = MediaStream.Delivery.PROGRESSIVE,
+                            content = "",
+                            format = "MPEG-4",
+                            codec = "avc1.4d401e",
+                            qualityLabel = "480p",
+                            bitrate = 500_000,
+                            height = 480,
+                            audioTrackName = null,
                         ),
                     ),
                 ),

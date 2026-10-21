@@ -1,7 +1,9 @@
 // Playback: PlaybackService (MediaSessionService), ExoPlayer setup, MediaSource building.
-// Filled in during Phase 3. Depends only on :domain, never on :data or NewPipe.
+// Depends only on :domain, never on :data or NewPipe.
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -22,4 +24,14 @@ android {
 
 dependencies {
     implementation(project(":domain"))
+
+    // api: :app uses MediaController/PlayerView types that come from these.
+    api(libs.androidx.media3.session)
+    api(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.dash)
+    implementation(libs.kotlinx.coroutines.android)
+
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 }

@@ -1,6 +1,16 @@
 package uz.donfinity.itubepro.ui.detail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.graphics.Color
+import uz.donfinity.itubepro.ui.player.VideoPlayer
+import uz.donfinity.itubepro.ui.player.rememberPlayWithNotificationPermission
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -63,15 +73,28 @@ fun VideoDetailScreen(
     viewModel: VideoDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    VideoDetailContent(state = state, onBack = onBack, onRetry = viewModel::onRetry, onVideoClick = onVideoClick)
+    val playerState by viewModel.playerState.collectAsStateWithLifecycle()
+    val onPlay = rememberPlayWithNotificationPermission(viewModel::onPlay)
+    VideoDetailContent(
+        state = state,
+        playerState = playerState,
+        onBack = onBack,
+        onRetry = viewModel::onRetry,
+        onPlay = onPlay,
+        onToggleAudioOnly = viewModel::onToggleAudioOnly,
+        onVideoClick = onVideoClick,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VideoDetailContent(
     state: VideoDetailUiState,
+    playerState: DetailPlayerState,
     onBack: () -> Unit,
     onRetry: () -> Unit,
+    onPlay: () -> Unit,
+    onToggleAudioOnly: () -> Unit,
     onVideoClick: (String) -> Unit,
 ) {
     Scaffold(
@@ -93,24 +116,38 @@ private fun VideoDetailContent(
                 onRetry = onRetry,
                 modifier = Modifier.padding(padding),
             )
-            is VideoDetailUiState.Content -> DetailsList(state.details, padding, onVideoClick)
+            is VideoDetailUiState.Content -> DetailsList(
+                details = state.details,
+                playerState = playerState,
+                padding = padding,
+                onPlay = onPlay,
+                onToggleAudioOnly = onToggleAudioOnly,
+                onVideoClick = onVideoClick,
+            )
         }
     }
 }
 
 @Composable
-private fun DetailsList(details: VideoDetails, padding: PaddingValues, onVideoClick: (String) -> Unit) {
+private fun DetailsList(
+    details: VideoDetails,
+    playerState: DetailPlayerState,
+    padding: PaddingValues,
+    onPlay: () -> Unit,
+    onToggleAudioOnly: () -> Unit,
+    onVideoClick: (String) -> Unit,
+) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-        item(key = "thumbnail") {
-            VideoThumbnail(
-                url = details.thumbnailUrl,
-                durationSeconds = details.durationSeconds,
-                isLive = details.isLive,
-                cornerRadius = 0.dp,
-                modifier = Modifier.fillMaxWidth(),
-            )
+        item(key = "player") {
+            val player = playerState.player
+            if (playerState.isCurrent && !playerState.audioOnly && player != null) {
+                VideoPlayer(player)
+            } else {
+                PlayableThumbnail(details, playerState, onPlay)
+            }
         }
         item(key = "header") { Header(details) }
+        item(key = "actions") { PlaybackActions(playerState, onPlay, onToggleAudioOnly) }
         item(key = "channel") { ChannelRow(details) }
         if (details.description.content.isNotBlank()) {
             item(key = "description") { DescriptionCard(details.description) }
@@ -127,6 +164,56 @@ private fun DetailsList(details: VideoDetails, padding: PaddingValues, onVideoCl
                 VideoListItem(video = video, onClick = { onVideoClick(video.url) })
             }
         }
+    }
+}
+
+/** Thumbnail with a play button, or an "audio only" note while this video plays without video. */
+@Composable
+private fun PlayableThumbnail(details: VideoDetails, playerState: DetailPlayerState, onPlay: () -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        VideoThumbnail(
+            url = details.thumbnailUrl,
+            durationSeconds = details.durationSeconds,
+            isLive = details.isLive,
+            cornerRadius = 0.dp,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (playerState.isCurrent) {
+            Text(
+                stringResource(R.string.detail_playing_audio_only),
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        } else {
+            FilledIconButton(onClick = onPlay, modifier = Modifier.size(64.dp)) {
+                Icon(Icons.Filled.PlayArrow, stringResource(R.string.action_play), Modifier.size(36.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaybackActions(playerState: DetailPlayerState, onPlay: () -> Unit, onToggleAudioOnly: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (!playerState.isCurrent) {
+            Button(onClick = onPlay) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, Modifier.size(18.dp))
+                Text(stringResource(R.string.action_play), Modifier.padding(start = 6.dp))
+            }
+        }
+        FilterChip(
+            selected = playerState.audioOnly,
+            onClick = onToggleAudioOnly,
+            label = { Text(stringResource(R.string.settings_audio_only)) },
+            leadingIcon = { Icon(Icons.Outlined.Headphones, contentDescription = null, Modifier.size(18.dp)) },
+        )
     }
 }
 

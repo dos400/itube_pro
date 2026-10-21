@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.newpipe.extractor)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

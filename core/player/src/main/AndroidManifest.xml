@@ -1,2 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Streaming. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- ExoPlayer's WAKE_MODE_NETWORK: keep CPU + Wi-Fi awake while playing with screen off. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- MediaSessionService runs as a foreground service while playing. On Android 14+ the
+         type-specific permission is required in addition to FOREGROUND_SERVICE. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Android 13+: runtime permission for the media notification (requested on first play). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <!-- exported + the MediaSessionService action: lets controllers (our UI, the system
+             media controls, Bluetooth, Android Auto) find and bind to the session. It must
+             stay open to other apps; MediaSession itself decides which controllers to accept
+             (MediaSession.Callback.onConnect), so lint's ExportedService warning is ignored. -->
+        <service
+            android:name=".PlaybackService"
+            tools:ignore="ExportedService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>

@@ -17,5 +17,6 @@ fun AppException.messageRes(): Int = when (this) {
     is AppException.GeoRestricted -> R.string.error_geo_restricted
     is AppException.Unavailable -> R.string.error_unavailable
     is AppException.Parsing -> R.string.error_parsing
+    is AppException.LiveNotSupported -> R.string.error_live_not_supported
     is AppException.Unknown -> R.string.error_unknown
 }

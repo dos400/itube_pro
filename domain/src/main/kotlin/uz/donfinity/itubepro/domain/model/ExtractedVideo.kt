@@ -20,6 +20,8 @@ data class ExtractedVideo(
 )
 
 data class MediaStream(
+    /** Unique within one extraction; lets the data layer find the original stream again. */
+    val id: String,
     val kind: Kind,
     val delivery: Delivery,
     /** A direct URL when [delivery] is [Delivery.PROGRESSIVE], otherwise manifest content or URL. */
@@ -32,6 +34,8 @@ data class MediaStream(
     val bitrate: Int,
     val height: Int,
     val audioTrackName: String?,
+    /** For [Kind.AUDIO] on videos with several audio languages; null when unknown. */
+    val audioTrackType: AudioTrackType? = null,
 ) {
     enum class Kind {
         /** Video and audio in one file (legacy YouTube itags, max 360p). */
@@ -42,4 +46,6 @@ data class MediaStream(
     }
 
     enum class Delivery { PROGRESSIVE, DASH, HLS, OTHER }
+
+    enum class AudioTrackType { ORIGINAL, DUBBED, DESCRIPTIVE, SECONDARY }
 }

@@ -21,7 +21,8 @@ AGP 9 would otherwise use its own bundled (older) Kotlin.
 :app          UI (Compose + M3), Navigation (type-safe routes), ViewModels, Hilt entry points
 :domain       pure Kotlin/JVM: models, repository interfaces, use cases, AppException
 :data         NewPipeExtractor, OkHttpDownloader, repository impls, (later) Room, DataStore
-:core:player  (Phase 3) PlaybackService : MediaSessionService, ExoPlayer, MediaSource building
+:core:player  PlaybackService : MediaSessionService, ExoPlayer, MediaSource building,
+              PlayerConnection (the UI's MediaController wrapper)
 ```
 
 Dependency direction: `app → domain, core:player, data` · `data → domain` · `core:player → domain`.
@@ -33,7 +34,13 @@ Dependency direction: `app → domain, core:player, data` · `data → domain` �
   get constructed in `app/di/UseCaseModule.kt`.
 - `:app` depends on `:data` only so Hilt can see its modules. The one allowed import is
   `NewPipeInitializer` in `ItubeApp`.
-- The UI talks to the player only through `MediaController` (Phase 3).
+- The UI talks to the player only through `MediaController`, wrapped by `PlayerConnection`
+  (connect in Activity.onStart, disconnect in onStop). The UI sends light MediaItems
+  (mediaId = video URL). The service resolves streams in `MediaSession.Callback.onAddMediaItems`.
+- Stream *selection* rules live in `:domain` (`StreamSelector`). `:data` only maps the result back
+  to NewPipe streams to generate DASH manifests and per-client HTTP headers.
+- Media3 `@UnstableApi` needs `@OptIn(UnstableApi::class)` (androidx.annotation). Kotlin doesn't
+  check it, only lint does, so run `./gradlew lintDebug` before committing.
 - No business logic in composables. A screen is a stateful `XScreen(viewModel)` wrapper
   plus a stateless `XContent(state, callbacks)`.
 - User-visible text lives in `strings.xml`. UI state carries `@StringRes` IDs, never a Context.
@@ -63,6 +70,17 @@ on every video.
    If JitPack says the artifact is missing, use the commit hash instead of the tag.
 4. If the API changed, only `:data` should need edits (mappers, repositories).
 5. Also compare `OkHttpDownloader.USER_AGENT` with `DownloaderImpl.USER_AGENT` in ref/NewPipe.
+
+## Playback pipeline (Phase 3)
+
+```
+UI ─MediaItem(mediaId=url)→ MediaController ══IPC══ MediaSession (PlaybackService)
+  onAddMediaItems → MediaItemResolver → PlaybackRepository (:data: extract, select, manifests)
+  → MediaItem(tag = PlaybackSource) → YoutubeMediaSourceFactory
+  → MergingMediaSource(DashMediaSource(video), DashMediaSource(audio))
+  → YoutubeDataSourceFactory (rn, range=, POST) → DefaultHttpDataSource
+Errors: 403 → PlaybackRecovery re-resolves (forceRefresh) + seeks back; network → re-prepare.
+```
 
 ## Lessons learned
 
@@ -106,3 +124,30 @@ on every video.
   `StreamInfo` says `LIVE_STREAM` (HLS URL, no DASH). So lists can't show a LIVE badge,
   and the player must check the full info's stream type.
 - Coil shares the app's OkHttpClient through `SingletonImageLoader.Factory` on the Application.
+
+### Phase 3 – Background playback
+- YouTube stream URLs contain `ip=<device IP>` and expire after ~6 h. A Wi-Fi ↔ mobile switch
+  or a long pause therefore ends in **HTTP 403**. The fix is re-extraction, not retrying
+  (`NoRetryOnForbiddenPolicy` + `PlaybackRecovery`). Recovery was tested on an emulator with a
+  fake repository: 403 → `resolve(forceRefresh = true)` → playback resumed.
+- The extractor currently hands out `c=VISIONOS` URLs, which need the visionOS User-Agent.
+  `:data` puts per-track headers on `PlaybackTrack`, so the player never needs NewPipe.
+- NewPipe's 900-line forked HTTP data source comes down to a `ResolvingDataSource` that rewrites
+  each `DataSpec` (add `rn`, move the range into `&range=`, POST `x\0`) in front of the stock
+  `DefaultHttpDataSource`.
+- **Media3 `isPlaybackOngoing()` only means "still in the foreground"**, and Media3 stays in the
+  foreground for a while after pausing. In `onTaskRemoved`, check the player instead
+  (`playWhenReady`, items, not ENDED).
+- In `onTaskRemoved`, use plain `stopSelf()` when already paused. `pauseAllPlayersAndStopSelf()`
+  posted a notification update that outlived the process (stuck, undismissable notification).
+- Audio only = `setTrackTypeDisabled(TRACK_TYPE_VIDEO)`. With separate sources, ExoPlayer stops
+  loading video segments. It switches instantly, without re-buffering.
+- Release the MediaController in `onStop`. A bound controller keeps the service from ever being
+  destroyed.
+- `asPaddingValues()` ignores consumed insets. Use `Spacer(Modifier.windowInsetsBottomHeight(...))`
+  inside lists when a parent (the now-playing bar) consumes the navigation bar inset.
+- Live streams: only HLS is offered and `media3-exoplayer-hls` isn't a dependency yet →
+  `AppException.LiveNotSupported`.
+- Verified on the emulator (API 37): 720p H.264 + Opus merged, seek, audio-only, foreground
+  service + MediaStyle notification, Home, screen off, swipe while playing (keeps going), swipe
+  while paused (service stops, notification removed), media keys, battery exemption dialog.

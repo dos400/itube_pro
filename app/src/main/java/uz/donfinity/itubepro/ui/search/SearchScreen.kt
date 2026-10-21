@@ -3,6 +3,7 @@ package uz.donfinity.itubepro.ui.search
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,7 +60,7 @@ import uz.donfinity.itubepro.ui.common.VideoListItem
 @Composable
 fun SearchScreen(
     onVideoClick: (url: String) -> Unit,
-    onOpenDebug: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -86,7 +88,7 @@ fun SearchScreen(
         onLoadMore = viewModel::onLoadMore,
         onRetryAppend = viewModel::onRetryAppend,
         onVideoClick = onVideoClick,
-        onOpenDebug = onOpenDebug,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -105,14 +107,13 @@ private fun SearchContent(
     onLoadMore: () -> Unit,
     onRetryAppend: () -> Unit,
     onVideoClick: (String) -> Unit,
-    onOpenDebug: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     // Space under the floating search bar: status bar + bar height + its outer padding.
-    val resultsPadding = PaddingValues(
-        top = statusBarTop + SearchBarDefaults.InputFieldHeight + 16.dp,
-        bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-    )
+    // The bottom (navigation bar) inset is a Spacer at the end of the list instead, because
+    // asPaddingValues() ignores insets already consumed by the now-playing bar.
+    val resultsPadding = PaddingValues(top = statusBarTop + SearchBarDefaults.InputFieldHeight + 16.dp)
 
     Box(Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
         SearchBar(
@@ -144,6 +145,10 @@ private fun SearchContent(
                             }) {
                                 Icon(Icons.Default.Close, stringResource(R.string.action_clear))
                             }
+                        } else if (!expanded) {
+                            IconButton(onClick = onOpenSettings) {
+                                Icon(Icons.Outlined.Settings, stringResource(R.string.settings_title))
+                            }
                         }
                     },
                 )
@@ -164,7 +169,6 @@ private fun SearchContent(
                     icon = Icons.Outlined.VideoLibrary,
                     message = stringResource(R.string.search_idle),
                     modifier = Modifier.padding(resultsPadding),
-                    action = { TextButton(onClick = onOpenDebug) { Text(stringResource(R.string.debug_title)) } },
                 )
                 SearchResultsState.Loading -> LoadingState(Modifier.padding(resultsPadding))
                 is SearchResultsState.Error -> ErrorState(
@@ -274,6 +278,9 @@ private fun ResultsList(
                     onRetry = onRetryAppend,
                 )
             }
+        }
+        item(key = "bottom_inset") {
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
     }
 }

@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Settings → "Battery optimization" opens the system exemption dialog. Play Store
+         restricts this permission; fine for a sideloaded app. Player permissions live in
+         :core:player's manifest and are merged in. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".ItubeApp"
