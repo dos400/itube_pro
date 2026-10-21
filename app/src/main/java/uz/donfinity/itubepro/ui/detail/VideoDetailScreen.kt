@@ -154,6 +154,7 @@ fun VideoDetailScreen(
             playingHeight = playerState.playingHeight,
             onSelectQuality = viewModel::onSelectQuality,
             onExit = { fullscreen = false },
+            segmentMarkersMs = playerState.segmentStartsMs,
         )
     } else if (fullscreen && !inPip && !playerState.hasVideo) {
         // e.g. switched to audio only or playback stopped: nothing to show fullscreen.
@@ -253,6 +254,7 @@ private fun DetailsList(
                 VideoPlayer(
                     player = player,
                     onFullscreenClick = onEnterFullscreen,
+                    segmentMarkersMs = playerState.segmentStartsMs,
                     modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
                 )
             } else {

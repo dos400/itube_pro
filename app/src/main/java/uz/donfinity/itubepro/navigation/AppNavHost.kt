@@ -15,8 +15,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -50,6 +52,7 @@ import uz.donfinity.itubepro.ui.library.HistoryScreen
 import uz.donfinity.itubepro.ui.library.LibraryScreen
 import uz.donfinity.itubepro.ui.library.PlaylistScreen
 import uz.donfinity.itubepro.ui.library.SubscriptionsScreen
+import uz.donfinity.itubepro.ui.common.labelRes
 import uz.donfinity.itubepro.ui.player.LocalInPictureInPicture
 import uz.donfinity.itubepro.ui.player.NowPlayingBar
 import uz.donfinity.itubepro.ui.player.NowPlayingViewModel
@@ -118,6 +121,16 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
     val resources = LocalResources.current
     LaunchedEffect(Unit) {
         nowPlayingViewModel.errorMessages.collect { snackbarHostState.showSnackbar(resources.getString(it)) }
+    }
+    LaunchedEffect(Unit) {
+        nowPlayingViewModel.skips.collect { segment ->
+            val result = snackbarHostState.showSnackbar(
+                message = resources.getString(R.string.sponsorblock_skipped, resources.getString(segment.category.labelRes())),
+                actionLabel = resources.getString(R.string.action_undo),
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) nowPlayingViewModel.onUndoSkip(segment)
+        }
     }
 
     Scaffold(

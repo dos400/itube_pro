@@ -4,12 +4,16 @@ import android.content.ActivityNotFoundException
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,10 +27,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uz.donfinity.itubepro.R
+import uz.donfinity.itubepro.domain.model.SegmentCategory
+import uz.donfinity.itubepro.ui.common.labelRes
 
 @Composable
 fun SettingsScreen(
@@ -36,6 +43,8 @@ fun SettingsScreen(
 ) {
     val audioOnly by viewModel.audioOnly.collectAsStateWithLifecycle()
     val batteryUnrestricted by viewModel.batteryUnrestricted.collectAsStateWithLifecycle()
+    val sponsorBlockEnabled by viewModel.sponsorBlockEnabled.collectAsStateWithLifecycle()
+    val sponsorBlockCategories by viewModel.sponsorBlockCategories.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // Runs on every ON_RESUME, e.g. when coming back from the system battery dialog.
@@ -47,8 +56,12 @@ fun SettingsScreen(
     SettingsContent(
         audioOnly = audioOnly,
         batteryUnrestricted = batteryUnrestricted,
+        sponsorBlockEnabled = sponsorBlockEnabled,
+        sponsorBlockCategories = sponsorBlockCategories,
         onBack = onBack,
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
+        onSponsorBlockEnabledChange = viewModel::onSponsorBlockEnabledChange,
+        onSponsorBlockCategoryToggle = viewModel::onSponsorBlockCategoryToggle,
         onBatteryClick = {
             // Some vendor ROMs remove the dialog; fall back to the generic settings list.
             try {
@@ -66,8 +79,12 @@ fun SettingsScreen(
 private fun SettingsContent(
     audioOnly: Boolean,
     batteryUnrestricted: Boolean,
+    sponsorBlockEnabled: Boolean,
+    sponsorBlockCategories: Set<SegmentCategory>,
     onBack: () -> Unit,
     onAudioOnlyChange: (Boolean) -> Unit,
+    onSponsorBlockEnabledChange: (Boolean) -> Unit,
+    onSponsorBlockCategoryToggle: (SegmentCategory) -> Unit,
     onBatteryClick: () -> Unit,
     onOpenDebug: () -> Unit,
 ) {
@@ -83,7 +100,8 @@ private fun SettingsContent(
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding)) {
+        // Scrollable: with SponsorBlock's categories expanded the list is taller than a phone screen.
+        Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_audio_only)) },
                 supportingContent = { Text(stringResource(R.string.settings_audio_only_summary)) },
@@ -108,6 +126,29 @@ private fun SettingsContent(
                 },
                 modifier = Modifier.clickable(onClick = onBatteryClick),
             )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_sponsorblock)) },
+                supportingContent = { Text(stringResource(R.string.settings_sponsorblock_summary)) },
+                leadingContent = { Icon(Icons.Outlined.FastForward, contentDescription = null) },
+                trailingContent = { Switch(checked = sponsorBlockEnabled, onCheckedChange = onSponsorBlockEnabledChange) },
+                modifier = Modifier.clickable { onSponsorBlockEnabledChange(!sponsorBlockEnabled) },
+            )
+            if (sponsorBlockEnabled) {
+                SegmentCategory.entries.forEach { category ->
+                    ListItem(
+                        headlineContent = { Text(stringResource(category.labelRes())) },
+                        leadingContent = {
+                            Checkbox(
+                                checked = category in sponsorBlockCategories,
+                                onCheckedChange = { onSponsorBlockCategoryToggle(category) },
+                            )
+                        },
+                        modifier = Modifier
+                            .padding(start = 40.dp)
+                            .clickable { onSponsorBlockCategoryToggle(category) },
+                    )
+                }
+            }
             ListItem(
                 headlineContent = { Text(stringResource(R.string.debug_title)) },
                 leadingContent = { Icon(Icons.Outlined.BugReport, contentDescription = null) },

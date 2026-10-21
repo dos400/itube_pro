@@ -25,6 +25,7 @@ import uz.donfinity.itubepro.data.repository.NewPipeSubscriptionRepository
 import uz.donfinity.itubepro.data.repository.RoomFavoritesRepository
 import uz.donfinity.itubepro.data.repository.RoomHistoryRepository
 import uz.donfinity.itubepro.data.repository.RoomPlaylistRepository
+import uz.donfinity.itubepro.data.repository.SponsorBlockApiRepository
 import uz.donfinity.itubepro.data.repository.NewPipeVideoRepository
 import uz.donfinity.itubepro.data.settings.DataStoreSettingsRepository
 import uz.donfinity.itubepro.domain.repository.FavoritesRepository
@@ -33,6 +34,7 @@ import uz.donfinity.itubepro.domain.repository.PlaybackRepository
 import uz.donfinity.itubepro.domain.repository.PlaylistRepository
 import uz.donfinity.itubepro.domain.repository.SearchRepository
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
+import uz.donfinity.itubepro.domain.repository.SponsorBlockRepository
 import uz.donfinity.itubepro.domain.repository.SubscriptionRepository
 import uz.donfinity.itubepro.domain.repository.VideoRepository
 
@@ -107,4 +109,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSubscriptionRepository(impl: NewPipeSubscriptionRepository): SubscriptionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSponsorBlockRepository(impl: SponsorBlockApiRepository): SponsorBlockRepository
 }

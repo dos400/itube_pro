@@ -3,6 +3,7 @@ package uz.donfinity.itubepro.core.player
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import androidx.annotation.MainThread
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
@@ -15,7 +16,10 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import uz.donfinity.itubepro.domain.error.AppException
+import uz.donfinity.itubepro.domain.model.SkipSegment
 
 /** One selectable video quality of the current item. */
 data class VideoQuality(
@@ -87,6 +92,14 @@ class PlayerConnection @Inject constructor(
     private val _state = MutableStateFlow(NowPlayingState())
     val state: StateFlow<NowPlayingState> = _state.asStateFlow()
 
+    private val _segments = MutableStateFlow<Pair<String?, List<SkipSegment>>>(null to emptyList())
+    /** SponsorBlock segments of the current item, as (mediaId, segments). For seek bar markers. */
+    val segments: StateFlow<Pair<String?, List<SkipSegment>>> = _segments.asStateFlow()
+
+    private val _skips = MutableSharedFlow<SkipSegment>(extraBufferCapacity = 1)
+    /** One-off: the service just skipped this segment (shown as a snackbar with Undo). */
+    val skips: SharedFlow<SkipSegment> = _skips.asSharedFlow()
+
     private val _errors = MutableSharedFlow<AppException>(extraBufferCapacity = 1)
     /** One-off errors from the service, e.g. extraction failed when starting a video. */
     val errors: SharedFlow<AppException> = _errors.asSharedFlow()
@@ -108,6 +121,21 @@ class PlayerConnection @Inject constructor(
                 override fun onError(controller: MediaController, sessionError: SessionError) {
                     _errors.tryEmit(PlaybackErrors.fromSessionError(sessionError))
                 }
+
+                override fun onExtrasChanged(controller: MediaController, extras: Bundle) {
+                    _segments.value = SponsorBlockProtocol.segmentsFromBundle(extras)
+                }
+
+                override fun onCustomCommand(
+                    controller: MediaController,
+                    command: SessionCommand,
+                    args: Bundle,
+                ): ListenableFuture<SessionResult> {
+                    if (command.customAction == SponsorBlockProtocol.ACTION_SKIPPED) {
+                        SponsorBlockProtocol.segmentFromBundle(args)?.let(_skips::tryEmit)
+                    }
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
             })
             .buildAsync()
         controllerFuture = future
@@ -117,6 +145,8 @@ class PlayerConnection @Inject constructor(
             controller.addListener(playerListener)
             _controller.value = controller
             _state.value = controller.toState()
+            // Extras set before we connected aren't re-sent as a change; read them once.
+            _segments.value = SponsorBlockProtocol.segmentsFromBundle(controller.sessionExtras)
             pendingItem?.let { start(controller, it) }
             pendingItem = null
         }, ContextCompat.getMainExecutor(context))
@@ -185,6 +215,12 @@ class PlayerConnection @Inject constructor(
                 }
             }
             .build()
+    }
+
+    /** Seeks back into a skipped segment and lets it play this once. */
+    @MainThread
+    fun undoSkip(segment: SkipSegment) {
+        _controller.value?.sendCustomCommand(SponsorBlockProtocol.UNDO_COMMAND, SponsorBlockProtocol.segmentToBundle(segment))
     }
 
     /** Clears the queue. The service then stops itself and the notification goes away. */

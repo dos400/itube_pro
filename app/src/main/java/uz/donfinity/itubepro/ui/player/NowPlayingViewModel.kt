@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import uz.donfinity.itubepro.core.player.NowPlayingState
 import uz.donfinity.itubepro.core.player.PlayerConnection
+import uz.donfinity.itubepro.domain.model.SkipSegment
 import uz.donfinity.itubepro.ui.common.messageRes
 
 /** Backs the app-wide mini-player, PiP video and the playback error snackbar. */
@@ -41,6 +42,11 @@ class NowPlayingViewModel @Inject constructor(
 
     /** One-off events (string resource IDs): collect once and show as a snackbar. */
     val errorMessages: Flow<Int> = playerConnection.errors.map { it.messageRes() }
+
+    /** One-off: a SponsorBlock segment was skipped (snackbar with Undo). */
+    val skips: Flow<SkipSegment> = playerConnection.skips
+
+    fun onUndoSkip(segment: SkipSegment) = playerConnection.undoSkip(segment)
 
     fun onPlayPause() = playerConnection.togglePlayPause()
 

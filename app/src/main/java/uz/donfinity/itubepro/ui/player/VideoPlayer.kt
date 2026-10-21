@@ -44,6 +44,8 @@ fun VideoPlayer(
     onFullscreenClick: (() -> Unit)? = null,
     onControllerVisibilityChange: (Boolean) -> Unit = {},
     gestureListener: GesturePlayerLayout.Listener? = null,
+    /** SponsorBlock segment starts, marked on the seek bar (PlayerView's "extra ad group" markers). */
+    segmentMarkersMs: List<Long> = emptyList(),
 ) {
     // The big player (with controls) is what PiP should grow out of; the mini-player isn't.
     if (useController) {
@@ -76,6 +78,10 @@ fun VideoPlayer(
             )
             layout.gesturesEnabled = gestureListener != null
             layout.listener = gestureListener
+            layout.playerView.setExtraAdGroupMarkers(
+                segmentMarkersMs.toLongArray(),
+                BooleanArray(segmentMarkersMs.size),
+            )
         },
         // Detach so the old view stops holding a surface for the player.
         onRelease = { it.playerView.player = null },

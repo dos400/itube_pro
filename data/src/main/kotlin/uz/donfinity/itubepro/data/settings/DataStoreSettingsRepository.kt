@@ -4,10 +4,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import uz.donfinity.itubepro.domain.model.SegmentCategory
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
 
 /**
@@ -25,7 +27,28 @@ class DataStoreSettingsRepository @Inject constructor(
         dataStore.edit { it[KEY_AUDIO_ONLY] = enabled }
     }
 
+    override val sponsorBlockEnabled: Flow<Boolean> =
+        dataStore.data.map { it[KEY_SPONSORBLOCK_ENABLED] ?: false }.distinctUntilChanged()
+
+    override suspend fun setSponsorBlockEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_SPONSORBLOCK_ENABLED] = enabled }
+    }
+
+    /** Stored by API name, so renaming an enum constant later can't corrupt saved settings. */
+    override val sponsorBlockCategories: Flow<Set<SegmentCategory>> = dataStore.data
+        .map { prefs ->
+            prefs[KEY_SPONSORBLOCK_CATEGORIES]?.mapNotNull(SegmentCategory::fromApiName)?.toSet()
+                ?: SegmentCategory.DEFAULTS
+        }
+        .distinctUntilChanged()
+
+    override suspend fun setSponsorBlockCategories(categories: Set<SegmentCategory>) {
+        dataStore.edit { prefs -> prefs[KEY_SPONSORBLOCK_CATEGORIES] = categories.map { it.apiName }.toSet() }
+    }
+
     private companion object {
         val KEY_AUDIO_ONLY = booleanPreferencesKey("audio_only")
+        val KEY_SPONSORBLOCK_ENABLED = booleanPreferencesKey("sponsorblock_enabled")
+        val KEY_SPONSORBLOCK_CATEGORIES = stringSetPreferencesKey("sponsorblock_categories")
     }
 }

@@ -53,6 +53,8 @@ data class DetailPlayerState(
     val qualities: List<VideoQuality> = emptyList(),
     val selectedQuality: VideoQuality? = null,
     val playingHeight: Int = 0,
+    /** SponsorBlock segment starts for the seek bar; empty when off or none. */
+    val segmentStartsMs: List<Long> = emptyList(),
 )
 
 /** Library part of the screen: favorite heart, playlist checkboxes, subscribe button. */
@@ -89,7 +91,8 @@ class VideoDetailViewModel @Inject constructor(
         playerConnection.controller,
         playerConnection.state,
         settings.audioOnly,
-    ) { controller, nowPlaying, audioOnly ->
+        playerConnection.segments,
+    ) { controller, nowPlaying, audioOnly, (segmentsFor, segments) ->
         val isCurrent = nowPlaying.mediaId == url
         DetailPlayerState(
             player = controller,
@@ -99,6 +102,7 @@ class VideoDetailViewModel @Inject constructor(
             qualities = if (isCurrent) nowPlaying.qualities else emptyList(),
             selectedQuality = nowPlaying.selectedQuality.takeIf { isCurrent },
             playingHeight = if (isCurrent) nowPlaying.videoHeight else 0,
+            segmentStartsMs = if (segmentsFor == url) segments.map { it.startMs } else emptyList(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailPlayerState())
 

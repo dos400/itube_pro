@@ -73,6 +73,7 @@ fun FullscreenPlayer(
     playingHeight: Int,
     onSelectQuality: (VideoQuality?) -> Unit,
     onExit: () -> Unit,
+    segmentMarkersMs: List<Long> = emptyList(),
 ) {
     Dialog(
         onDismissRequest = onExit, // back button / gesture
@@ -169,6 +170,7 @@ fun FullscreenPlayer(
                 onFullscreenClick = onExit,
                 onControllerVisibilityChange = { controlsVisible = it },
                 gestureListener = gestureListener,
+                segmentMarkersMs = segmentMarkersMs,
                 modifier = Modifier.fillMaxSize(),
             )
             feedback?.let { GestureFeedbackOverlay(it, Modifier.align(Alignment.Center)) }

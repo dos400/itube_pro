@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import uz.donfinity.itubepro.domain.model.SegmentCategory
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
 import uz.donfinity.itubepro.system.BatteryOptimization
 
@@ -27,6 +28,22 @@ class SettingsViewModel @Inject constructor(
 
     val audioOnly: StateFlow<Boolean> =
         settings.audioOnly.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val sponsorBlockEnabled: StateFlow<Boolean> =
+        settings.sponsorBlockEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val sponsorBlockCategories: StateFlow<Set<SegmentCategory>> =
+        settings.sponsorBlockCategories.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SegmentCategory.DEFAULTS)
+
+    fun onSponsorBlockEnabledChange(enabled: Boolean) {
+        viewModelScope.launch { settings.setSponsorBlockEnabled(enabled) }
+    }
+
+    fun onSponsorBlockCategoryToggle(category: SegmentCategory) {
+        val current = sponsorBlockCategories.value
+        val updated = if (category in current) current - category else current + category
+        viewModelScope.launch { settings.setSponsorBlockCategories(updated) }
+    }
 
     private val _batteryUnrestricted = MutableStateFlow(batteryOptimization.isIgnoringOptimizations())
     val batteryUnrestricted: StateFlow<Boolean> = _batteryUnrestricted.asStateFlow()

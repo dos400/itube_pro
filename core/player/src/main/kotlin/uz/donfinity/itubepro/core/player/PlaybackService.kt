@@ -2,6 +2,7 @@ package uz.donfinity.itubepro.core.player
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
@@ -13,6 +14,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import dagger.hilt.android.AndroidEntryPoint
@@ -24,6 +28,7 @@ import uz.donfinity.itubepro.domain.error.AppException
 import uz.donfinity.itubepro.domain.model.PlaybackSource
 import uz.donfinity.itubepro.domain.repository.HistoryRepository
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
+import uz.donfinity.itubepro.domain.repository.SponsorBlockRepository
 
 /**
  * Owns the single ExoPlayer and its MediaSession, and keeps playing with the screen off, the
@@ -42,8 +47,10 @@ class PlaybackService : MediaSessionService() {
     @Inject internal lateinit var resolver: MediaItemResolver
     @Inject internal lateinit var settings: SettingsRepository
     @Inject internal lateinit var history: HistoryRepository
+    @Inject internal lateinit var sponsorBlock: SponsorBlockRepository
 
     private var session: MediaSession? = null
+    private var skipper: SponsorBlockSkipper? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -82,6 +89,22 @@ class PlaybackService : MediaSessionService() {
             .setCallback(SessionCallback())
             .apply { launchAppIntent()?.let(::setSessionActivity) }
             .build()
+
+        skipper = SponsorBlockSkipper(
+            player = player,
+            repository = sponsorBlock,
+            settings = settings,
+            scope = lifecycleScope,
+            onSegmentsChanged = { mediaId, segments ->
+                session?.setSessionExtras(SponsorBlockProtocol.segmentsToBundle(mediaId, segments))
+            },
+            onSkipped = { segment ->
+                session?.broadcastCustomCommand(
+                    SponsorBlockProtocol.SKIPPED_COMMAND,
+                    SponsorBlockProtocol.segmentToBundle(segment),
+                )
+            },
+        ).also { it.start() }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
@@ -109,6 +132,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        skipper = null
         session?.run {
             player.release()
             release()
@@ -140,6 +164,38 @@ class PlaybackService : MediaSessionService() {
     }
 
     private inner class SessionCallback : MediaSession.Callback {
+        /**
+         * Our own UI may also send the SponsorBlock "Undo" custom command. Custom commands must
+         * be listed in the connection result, or the session rejects them. Other apps keep
+         * Media3's defaults.
+         */
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            val result = super.onConnect(session, controller)
+            if (controller.packageName != packageName || !result.isAccepted) return result
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                .setAvailablePlayerCommands(result.availablePlayerCommands)
+                .setAvailableSessionCommands(
+                    result.availableSessionCommands.buildUpon().add(SponsorBlockProtocol.UNDO_COMMAND).build(),
+                )
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            if (customCommand.customAction == SponsorBlockProtocol.ACTION_UNDO) {
+                SponsorBlockProtocol.segmentFromBundle(args)?.let { skipper?.undo(it.startMs) }
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            return super.onCustomCommand(session, controller, customCommand, args)
+        }
+
         /**
          * Controllers send light MediaItems (mediaId = video URL). We resolve them to playable
          * items here, asynchronously, so extraction runs in the service.

@@ -204,3 +204,20 @@ Resume happens in `PlaybackService.onSetMediaItems`.
 - `flatMapLatest` turns "the channel URL isn't known until details load" into a clean
   subscribed-state Flow.
 - Subscriptions are local only. Nothing is sent to YouTube (no account).
+
+### Phase 6 – SponsorBlock
+- Our own client (`SponsorBlockApiRepository`): Tubular gets segments from its *forked*
+  extractor, and we use upstream NewPipeExtractor. **Hash-prefix API**: only 4 hex characters
+  of SHA-256(videoId) are sent, the server returns ~100 candidate videos, and we filter
+  locally. Off by default (it talks to a third-party server).
+- Skipping uses ExoPlayer `PlayerMessage`s at each segment start (`setDeleteAfterDelivery(false)`,
+  main looper) instead of Tubular's position polling. Exact timing, no skip loops, and a
+  manual seek *into* a segment is respected.
+- `SkipSegments.merge` (domain, pure) chains overlapping/adjacent segments, like Tubular's
+  `getChainSkipEndTime`, so the player jumps once.
+- Service ↔ UI: **state** (current segments) = session extras (`setSessionExtras` /
+  `onExtrasChanged`, read `sessionExtras` once on connect). **Event** (skipped) = broadcast
+  custom command. **Request** (Undo) = custom command, which must be added to the
+  controller's `availableSessionCommands` in `onConnect`.
+- Seek bar markers: `PlayerView.setExtraAdGroupMarkers` (segment starts).
+- SponsorBlock failures are logged and ignored. Playback never waits for it (8 s call timeout).
