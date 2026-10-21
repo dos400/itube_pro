@@ -15,6 +15,22 @@ All versions live in `gradle/libs.versions.toml`.
 The root `build.gradle.kts` puts `kotlin-gradle-plugin` on the buildscript classpath.
 AGP 9 would otherwise use its own bundled (older) Kotlin.
 
+## Tests
+
+```
+./gradlew :domain:test testDebugUnitTest   # JVM unit tests, no device or emulator needed
+```
+
+- `:domain`: StreamSelector, SkipSegments.merge, use cases (fake repositories).
+- `:data`: DashManifestMerger, PageTokenCodec, ExceptionMapper (`when` order!), StreamInfoCache
+  (injected clock). No network in unit tests.
+- `:app`: SearchViewModel, FeedViewModel, DebugExtractionViewModel with hand-written fakes and
+  `MainDispatcherRule` (test dispatcher + virtual time, so debounce runs instantly).
+- No mocking library: repositories are interfaces, so small fakes do the job.
+- Not unit-testable on the JVM: anything needing Android or Media3 at runtime (PlayerConnection,
+  the service, Room DAOs, `toRoute`). Verify those on a real phone. Don't use the emulator on
+  the dev Mac (it overheats).
+
 ## Modules
 
 ```
@@ -221,3 +237,14 @@ Resume happens in `PlaybackService.onSetMediaItems`.
   controller's `availableSessionCommands` in `onConnect`.
 - Seek bar markers: `PlayerView.setExtraAdGroupMarkers` (segment starts).
 - SponsorBlock failures are logged and ignored. Playback never waits for it (8 s call timeout).
+
+### Phase 7 – Tests & polish
+- Testability came from earlier choices: interfaces in `:domain`, pure helpers (`StreamSelector`,
+  `SkipSegments`), injected clocks (`StreamInfoCache`), SavedStateHandle instead of Bundles.
+- `runTest` shares the virtual clock with a TestDispatcher set as Main, so
+  `advanceTimeBy(300)` proves a 250 ms debounce without waiting.
+- `stateIn(WhileSubscribed)` flows only run while collected. In tests, collect them in
+  `backgroundScope`.
+- One-off events go through a `Channel` (FeedViewModel), so `messages.first()` in a test gets
+  exactly the event that was sent.
+- Template leftovers removed (unused colors, redundant activity label, mipmap-anydpi-v26).

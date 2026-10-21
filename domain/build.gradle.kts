@@ -19,4 +19,5 @@ dependencies {
     // api: Flow appears in public repository interfaces. Pure Kotlin, no Android.
     api(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
