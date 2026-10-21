@@ -19,6 +19,7 @@ import uz.donfinity.itubepro.domain.repository.SearchRepository
 import uz.donfinity.itubepro.domain.usecase.GetSearchSuggestionsUseCase
 import uz.donfinity.itubepro.domain.usecase.SearchVideosUseCase
 import uz.donfinity.itubepro.testing.MainDispatcherRule
+import uz.donfinity.itubepro.ui.common.AppendState
 import uz.donfinity.itubepro.testing.video
 
 @OptIn(ExperimentalCoroutinesApi::class)

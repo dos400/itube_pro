@@ -343,6 +343,7 @@ fun PlaylistScreen(
 @Composable
 fun SubscriptionsScreen(
     onBack: () -> Unit,
+    onChannelClick: (String) -> Unit,
     viewModel: SubscriptionsViewModel = hiltViewModel(),
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -371,6 +372,7 @@ fun SubscriptionsScreen(
                         Text(stringResource(R.string.channel_unsubscribe))
                     }
                 },
+                modifier = Modifier.clickable { onChannelClick(channel.channelUrl) },
             )
         }
     }

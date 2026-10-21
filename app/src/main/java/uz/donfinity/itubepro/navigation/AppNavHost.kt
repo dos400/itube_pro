@@ -44,6 +44,7 @@ import androidx.navigation.toRoute
 import kotlin.reflect.KClass
 import kotlinx.serialization.Serializable
 import uz.donfinity.itubepro.R
+import uz.donfinity.itubepro.ui.channel.ChannelScreen
 import uz.donfinity.itubepro.ui.debug.DebugExtractionScreen
 import uz.donfinity.itubepro.ui.detail.VideoDetailScreen
 import uz.donfinity.itubepro.ui.feed.FeedScreen
@@ -74,6 +75,7 @@ import uz.donfinity.itubepro.ui.settings.SettingsScreen
 
 /** [url] is a video URL; ViewModels read it with `savedStateHandle.toRoute<VideoDetailRoute>()`. */
 @Serializable data class VideoDetailRoute(val url: String)
+@Serializable data class ChannelRoute(val url: String)
 @Serializable data object HistoryRoute
 @Serializable data object FavoritesRoute
 @Serializable data class PlaylistRoute(val id: Long)
@@ -179,6 +181,7 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
             ) {
                 val openVideo: (String) -> Unit = { navController.navigate(VideoDetailRoute(it)) }
                 val back: () -> Unit = { navController.popBackStack() }
+                val openChannel: (String) -> Unit = { navController.navigate(ChannelRoute(it)) }
 
                 composable<SearchRoute> {
                     SearchScreen(onVideoClick = openVideo, onOpenSettings = { navController.navigate(SettingsRoute) })
@@ -192,11 +195,14 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
                         onOpenPlaylist = { navController.navigate(PlaylistRoute(it)) },
                     )
                 }
-                composable<VideoDetailRoute> { VideoDetailScreen(onBack = back, onVideoClick = openVideo) }
+                composable<VideoDetailRoute> {
+                    VideoDetailScreen(onBack = back, onVideoClick = openVideo, onChannelClick = openChannel)
+                }
+                composable<ChannelRoute> { ChannelScreen(onBack = back, onVideoClick = openVideo) }
                 composable<HistoryRoute> { HistoryScreen(onBack = back, onVideoClick = openVideo) }
                 composable<FavoritesRoute> { FavoritesScreen(onBack = back, onVideoClick = openVideo) }
                 composable<PlaylistRoute> { PlaylistScreen(onBack = back, onVideoClick = openVideo) }
-                composable<SubscriptionsRoute> { SubscriptionsScreen(onBack = back) }
+                composable<SubscriptionsRoute> { SubscriptionsScreen(onBack = back, onChannelClick = openChannel) }
                 composable<SettingsRoute> {
                     SettingsScreen(onBack = back, onOpenDebug = { navController.navigate(DebugRoute) })
                 }

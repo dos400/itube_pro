@@ -33,13 +33,10 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -49,9 +46,10 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.distinctUntilChanged
 import uz.donfinity.itubepro.R
 import uz.donfinity.itubepro.ui.common.AppendFooter
+import uz.donfinity.itubepro.ui.common.AppendState
+import uz.donfinity.itubepro.ui.common.LoadMoreEffect
 import uz.donfinity.itubepro.ui.common.ErrorState
 import uz.donfinity.itubepro.ui.common.LoadingState
 import uz.donfinity.itubepro.ui.common.MessageState
@@ -228,22 +226,7 @@ private fun ResultsList(
     onVideoClick: (String) -> Unit,
     onSuggestionClick: (String) -> Unit,
 ) {
-    // rememberUpdatedState: the effect below runs once, but always calls the newest lambda.
-    val currentOnLoadMore by rememberUpdatedState(onLoadMore)
-    LaunchedEffect(listState) {
-        // snapshotFlow turns Compose state reads into a Flow. Emit (last visible, total)
-        // and ask for more when we're within LOAD_MORE_THRESHOLD of the end. Including
-        // the total means it fires again after a page is appended. The ViewModel ignores
-        // calls while already loading.
-        snapshotFlow {
-            val info = listState.layoutInfo
-            (info.visibleItemsInfo.lastOrNull()?.index ?: 0) to info.totalItemsCount
-        }
-            .distinctUntilChanged()
-            .collect { (lastVisible, total) ->
-                if (total > 0 && lastVisible >= total - LOAD_MORE_THRESHOLD) currentOnLoadMore()
-            }
-    }
+    LoadMoreEffect(listState, onLoadMore)
 
     LazyColumn(state = listState, contentPadding = contentPadding, modifier = Modifier.fillMaxSize()) {
         content.suggestion?.let { suggestion ->
@@ -285,4 +268,3 @@ private fun ResultsList(
     }
 }
 
-private const val LOAD_MORE_THRESHOLD = 5

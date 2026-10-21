@@ -91,6 +91,7 @@ import uz.donfinity.itubepro.ui.player.rememberPlayWithNotificationPermission
 fun VideoDetailScreen(
     onBack: () -> Unit,
     onVideoClick: (url: String) -> Unit,
+    onChannelClick: (channelUrl: String) -> Unit,
     viewModel: VideoDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -120,6 +121,7 @@ fun VideoDetailScreen(
         onSaveClick = { showSaveSheet = true },
         onToggleSubscribe = viewModel::onToggleSubscribe,
         onVideoClick = onVideoClick,
+        onChannelClick = onChannelClick,
     )
 
     if (showSaveSheet) {
@@ -192,6 +194,7 @@ private fun VideoDetailContent(
     onSaveClick: () -> Unit,
     onToggleSubscribe: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onChannelClick: (String) -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -226,6 +229,7 @@ private fun VideoDetailContent(
                 onSaveClick = onSaveClick,
                 onToggleSubscribe = onToggleSubscribe,
                 onVideoClick = onVideoClick,
+                onChannelClick = onChannelClick,
             )
         }
     }
@@ -246,6 +250,7 @@ private fun DetailsList(
     onSaveClick: () -> Unit,
     onToggleSubscribe: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onChannelClick: (String) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item(key = "player") {
@@ -265,7 +270,7 @@ private fun DetailsList(
         item(key = "actions") {
             PlaybackActions(playerState, libraryState, onPlay, onQualityClick, onToggleAudioOnly, onToggleFavorite, onSaveClick)
         }
-        item(key = "channel") { ChannelRow(details, libraryState.isSubscribed, onToggleSubscribe) }
+        item(key = "channel") { ChannelRow(details, libraryState.isSubscribed, onToggleSubscribe, onChannelClick) }
         if (details.description.content.isNotBlank()) {
             item(key = "description") { DescriptionCard(details.description) }
         }
@@ -395,11 +400,20 @@ private fun Header(details: VideoDetails) {
 }
 
 @Composable
-private fun ChannelRow(details: VideoDetails, isSubscribed: Boolean, onToggleSubscribe: () -> Unit) {
+private fun ChannelRow(
+    details: VideoDetails,
+    isSubscribed: Boolean,
+    onToggleSubscribe: () -> Unit,
+    onChannelClick: (String) -> Unit,
+) {
     Column {
         HorizontalDivider()
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier
+                .fillMaxWidth()
+                // Tapping the channel opens its page (only if we know its URL).
+                .then(details.uploaderUrl?.let { url -> Modifier.clickable { onChannelClick(url) } } ?: Modifier)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {

@@ -24,6 +24,7 @@ import uz.donfinity.itubepro.domain.model.PageToken
 import uz.donfinity.itubepro.domain.model.VideoSummary
 import uz.donfinity.itubepro.domain.usecase.GetSearchSuggestionsUseCase
 import uz.donfinity.itubepro.domain.usecase.SearchVideosUseCase
+import uz.donfinity.itubepro.ui.common.AppendState
 import uz.donfinity.itubepro.ui.common.messageRes
 
 sealed interface SearchResultsState {
@@ -40,13 +41,6 @@ sealed interface SearchResultsState {
         val isCorrectedSearch: Boolean,
         val append: AppendState = AppendState.Idle,
     ) : SearchResultsState
-}
-
-/** State of loading the *next* page, separate from the first page's state. */
-sealed interface AppendState {
-    data object Idle : AppendState
-    data object Loading : AppendState
-    data class Error(@param:StringRes val messageRes: Int) : AppendState
 }
 
 /**

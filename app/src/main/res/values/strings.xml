@@ -118,6 +118,8 @@
     <string name="channel_subscribe">Subscribe</string>
     <string name="channel_subscribed">Subscribed</string>
     <string name="channel_unsubscribe">Unsubscribe</string>
+    <string name="channel_videos">Videos</string>
+    <string name="channel_no_videos">This channel has no videos.</string>
 
     <!-- Feed -->
     <string name="feed_title">Feed</string>

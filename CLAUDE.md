@@ -269,3 +269,12 @@ Resume happens in `PlaybackService.onSetMediaItems`.
   StreamInfo, so it costs no extra request.
 - "Autoplay next video" setting → `pauseAtEndOfMediaItems = !autoplay`. Next works either way.
 - History in the queue is capped at 20 items (for Previous).
+
+### Channel screen
+- Same flow as ref/NewPipe ChannelFragment/ChannelTabFragment: `ChannelInfo` (header + tabs) →
+  `ChannelTabInfo` for the `ChannelTabs.VIDEOS` tab (falling back to the first tab).
+- Loading more needs the tab's `ListLinkHandler` *and* the `Page`. Both are Serializable and go
+  into one `PageToken` (`PageTokenCodec.encodeWithTab`), so the repository stays stateless.
+- Infinite scroll is shared: `ui/common/Paging.kt` (`AppendState`, `LoadMoreEffect`) is used by
+  Search and Channel.
+- Ways in: the channel row on the video detail screen, and Library → Subscriptions.
