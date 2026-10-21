@@ -261,3 +261,11 @@ Resume happens in `PlaybackService.onSetMediaItems`.
 - Lessons: test every phase that touches the session on a device. When "nothing happens",
   read the **whole** process log (`adb logcat --pid`), not just your own tags. Media3 warns
   (W/MCImplBase) instead of throwing.
+
+### Up next / Next button
+- Media3's notification shows Next only when there *is* a next item (COMMAND_SEEK_TO_NEXT).
+  `UpNextQueue` (service) keeps the first related video that isn't already queued as the next
+  item, like ref/NewPipe PlayerHelper.autoQueueOf. The related list comes from the cached
+  StreamInfo, so it costs no extra request.
+- "Autoplay next video" setting → `pauseAtEndOfMediaItems = !autoplay`. Next works either way.
+- History in the queue is capped at 20 items (for Previous).

@@ -27,6 +27,13 @@ class DataStoreSettingsRepository @Inject constructor(
         dataStore.edit { it[KEY_AUDIO_ONLY] = enabled }
     }
 
+    override val autoplayNext: Flow<Boolean> =
+        dataStore.data.map { it[KEY_AUTOPLAY_NEXT] ?: true }.distinctUntilChanged()
+
+    override suspend fun setAutoplayNext(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTOPLAY_NEXT] = enabled }
+    }
+
     override val sponsorBlockEnabled: Flow<Boolean> =
         dataStore.data.map { it[KEY_SPONSORBLOCK_ENABLED] ?: false }.distinctUntilChanged()
 
@@ -48,6 +55,7 @@ class DataStoreSettingsRepository @Inject constructor(
 
     private companion object {
         val KEY_AUDIO_ONLY = booleanPreferencesKey("audio_only")
+        val KEY_AUTOPLAY_NEXT = booleanPreferencesKey("autoplay_next")
         val KEY_SPONSORBLOCK_ENABLED = booleanPreferencesKey("sponsorblock_enabled")
         val KEY_SPONSORBLOCK_CATEGORIES = stringSetPreferencesKey("sponsorblock_categories")
     }

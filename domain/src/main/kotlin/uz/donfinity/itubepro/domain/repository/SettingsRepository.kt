@@ -9,6 +9,11 @@ interface SettingsRepository {
 
     suspend fun setAudioOnly(enabled: Boolean)
 
+    /** When a video ends, continue with the queued "up next" video. On by default. */
+    val autoplayNext: Flow<Boolean>
+
+    suspend fun setAutoplayNext(enabled: Boolean)
+
     /**
      * Skip sponsor segments etc. Off by default: turning it on sends a hash prefix of every
      * played video's ID to a third-party server (sponsor.ajay.app).

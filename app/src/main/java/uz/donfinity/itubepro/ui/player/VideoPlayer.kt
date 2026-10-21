@@ -56,8 +56,7 @@ fun VideoPlayer(
     AndroidView(
         factory = { context ->
             GesturePlayerLayout(context).apply {
-                playerView.setShowNextButton(false)
-                playerView.setShowPreviousButton(false)
+                // Next/Previous appear automatically once the service has queued an "up next" video.
                 playerView.setControllerVisibilityListener(
                     PlayerView.ControllerVisibilityListener { visibility ->
                         currentOnVisibility(visibility == View.VISIBLE)

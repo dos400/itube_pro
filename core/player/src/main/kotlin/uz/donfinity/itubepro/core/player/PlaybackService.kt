@@ -29,6 +29,7 @@ import uz.donfinity.itubepro.domain.model.PlaybackSource
 import uz.donfinity.itubepro.domain.repository.HistoryRepository
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
 import uz.donfinity.itubepro.domain.repository.SponsorBlockRepository
+import uz.donfinity.itubepro.domain.repository.VideoRepository
 
 /**
  * Owns the single ExoPlayer and its MediaSession, and keeps playing with the screen off, the
@@ -48,6 +49,7 @@ class PlaybackService : MediaSessionService() {
     @Inject internal lateinit var settings: SettingsRepository
     @Inject internal lateinit var history: HistoryRepository
     @Inject internal lateinit var sponsorBlock: SponsorBlockRepository
+    @Inject internal lateinit var videos: VideoRepository
 
     private var session: MediaSession? = null
     private var skipper: SponsorBlockSkipper? = null
@@ -76,6 +78,8 @@ class PlaybackService : MediaSessionService() {
 
         player.addListener(PlaybackRecovery(player, resolver, lifecycleScope))
         player.addListener(PlaybackHistoryTracker(player, history, lifecycleScope))
+        player.addListener(UpNextQueue(player, videos, resolver, lifecycleScope))
+        observeAutoplay(player)
         observeAudioOnly(player)
 
         setMediaNotificationProvider(
@@ -153,6 +157,16 @@ class PlaybackService : MediaSessionService() {
                     .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, audioOnly)
                     .build()
             }
+        }
+    }
+
+    /**
+     * Autoplay off = pause at the end of each video instead of moving on. The next item stays
+     * queued, so the Next button keeps working either way.
+     */
+    private fun observeAutoplay(player: ExoPlayer) {
+        lifecycleScope.launch {
+            settings.autoplayNext.collect { autoplay -> player.pauseAtEndOfMediaItems = !autoplay }
         }
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +43,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val audioOnly by viewModel.audioOnly.collectAsStateWithLifecycle()
+    val autoplayNext by viewModel.autoplayNext.collectAsStateWithLifecycle()
     val batteryUnrestricted by viewModel.batteryUnrestricted.collectAsStateWithLifecycle()
     val sponsorBlockEnabled by viewModel.sponsorBlockEnabled.collectAsStateWithLifecycle()
     val sponsorBlockCategories by viewModel.sponsorBlockCategories.collectAsStateWithLifecycle()
@@ -55,11 +57,13 @@ fun SettingsScreen(
 
     SettingsContent(
         audioOnly = audioOnly,
+        autoplayNext = autoplayNext,
         batteryUnrestricted = batteryUnrestricted,
         sponsorBlockEnabled = sponsorBlockEnabled,
         sponsorBlockCategories = sponsorBlockCategories,
         onBack = onBack,
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
+        onAutoplayNextChange = viewModel::onAutoplayNextChange,
         onSponsorBlockEnabledChange = viewModel::onSponsorBlockEnabledChange,
         onSponsorBlockCategoryToggle = viewModel::onSponsorBlockCategoryToggle,
         onBatteryClick = {
@@ -78,11 +82,13 @@ fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     audioOnly: Boolean,
+    autoplayNext: Boolean,
     batteryUnrestricted: Boolean,
     sponsorBlockEnabled: Boolean,
     sponsorBlockCategories: Set<SegmentCategory>,
     onBack: () -> Unit,
     onAudioOnlyChange: (Boolean) -> Unit,
+    onAutoplayNextChange: (Boolean) -> Unit,
     onSponsorBlockEnabledChange: (Boolean) -> Unit,
     onSponsorBlockCategoryToggle: (SegmentCategory) -> Unit,
     onBatteryClick: () -> Unit,
@@ -108,6 +114,13 @@ private fun SettingsContent(
                 leadingContent = { Icon(Icons.Outlined.Headphones, contentDescription = null) },
                 trailingContent = { Switch(checked = audioOnly, onCheckedChange = onAudioOnlyChange) },
                 modifier = Modifier.clickable { onAudioOnlyChange(!audioOnly) },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_autoplay)) },
+                supportingContent = { Text(stringResource(R.string.settings_autoplay_summary)) },
+                leadingContent = { Icon(Icons.Outlined.SkipNext, contentDescription = null) },
+                trailingContent = { Switch(checked = autoplayNext, onCheckedChange = onAutoplayNextChange) },
+                modifier = Modifier.clickable { onAutoplayNextChange(!autoplayNext) },
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_battery)) },

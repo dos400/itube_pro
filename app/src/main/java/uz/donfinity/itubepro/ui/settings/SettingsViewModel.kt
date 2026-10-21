@@ -29,6 +29,13 @@ class SettingsViewModel @Inject constructor(
     val audioOnly: StateFlow<Boolean> =
         settings.audioOnly.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val autoplayNext: StateFlow<Boolean> =
+        settings.autoplayNext.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun onAutoplayNextChange(enabled: Boolean) {
+        viewModelScope.launch { settings.setAutoplayNext(enabled) }
+    }
+
     val sponsorBlockEnabled: StateFlow<Boolean> =
         settings.sponsorBlockEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
