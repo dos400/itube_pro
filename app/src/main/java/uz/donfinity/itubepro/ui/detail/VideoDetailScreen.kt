@@ -1,44 +1,48 @@
 package uz.donfinity.itubepro.ui.detail
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.Headphones
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.ui.graphics.Color
-import uz.donfinity.itubepro.ui.player.FullscreenPlayer
-import uz.donfinity.itubepro.ui.player.LocalInPictureInPicture
-import uz.donfinity.itubepro.ui.player.QualitySheet
-import uz.donfinity.itubepro.ui.player.VideoPlayer
-import uz.donfinity.itubepro.ui.player.qualityButtonLabel
-import uz.donfinity.itubepro.ui.player.rememberPlayWithNotificationPermission
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -65,14 +70,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import uz.donfinity.itubepro.R
 import uz.donfinity.itubepro.domain.model.Description
+import uz.donfinity.itubepro.domain.model.Playlist
 import uz.donfinity.itubepro.domain.model.VideoDetails
 import uz.donfinity.itubepro.ui.common.ErrorState
 import uz.donfinity.itubepro.ui.common.Formatters
 import uz.donfinity.itubepro.ui.common.LoadingState
+import uz.donfinity.itubepro.ui.common.NameDialog
 import uz.donfinity.itubepro.ui.common.VideoListItem
 import uz.donfinity.itubepro.ui.common.VideoThumbnail
 import uz.donfinity.itubepro.ui.common.subscriberCountText
 import uz.donfinity.itubepro.ui.common.viewCountText
+import uz.donfinity.itubepro.ui.player.FullscreenPlayer
+import uz.donfinity.itubepro.ui.player.LocalInPictureInPicture
+import uz.donfinity.itubepro.ui.player.QualitySheet
+import uz.donfinity.itubepro.ui.player.VideoPlayer
+import uz.donfinity.itubepro.ui.player.qualityButtonLabel
+import uz.donfinity.itubepro.ui.player.rememberPlayWithNotificationPermission
 
 @Composable
 fun VideoDetailScreen(
@@ -82,6 +95,9 @@ fun VideoDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playerState by viewModel.playerState.collectAsStateWithLifecycle()
+    val libraryState by viewModel.libraryState.collectAsStateWithLifecycle()
+    var showSaveSheet by rememberSaveable { mutableStateOf(false) }
+    var showNewPlaylist by rememberSaveable { mutableStateOf(false) }
     val onPlay = rememberPlayWithNotificationPermission(viewModel::onPlay)
     // UI-only state; rememberSaveable keeps it if the process is recreated.
     var fullscreen by rememberSaveable { mutableStateOf(false) }
@@ -91,6 +107,7 @@ fun VideoDetailScreen(
     VideoDetailContent(
         state = state,
         playerState = playerState,
+        libraryState = libraryState,
         // While fullscreen or in PiP another view shows the video; don't attach a second surface.
         showInlineVideo = !fullscreen && !inPip,
         onBack = onBack,
@@ -99,8 +116,34 @@ fun VideoDetailScreen(
         onEnterFullscreen = { fullscreen = true },
         onQualityClick = { showQualities = true },
         onToggleAudioOnly = viewModel::onToggleAudioOnly,
+        onToggleFavorite = viewModel::onToggleFavorite,
+        onSaveClick = { showSaveSheet = true },
+        onToggleSubscribe = viewModel::onToggleSubscribe,
         onVideoClick = onVideoClick,
     )
+
+    if (showSaveSheet) {
+        SaveToPlaylistSheet(
+            playlists = libraryState.playlists,
+            inPlaylists = libraryState.inPlaylists,
+            onToggle = viewModel::onTogglePlaylist,
+            onNewPlaylist = {
+                showSaveSheet = false
+                showNewPlaylist = true
+            },
+            onDismiss = { showSaveSheet = false },
+        )
+    }
+    if (showNewPlaylist) {
+        NameDialog(
+            title = stringResource(R.string.playlist_new),
+            onConfirm = {
+                viewModel.onCreatePlaylistWithVideo(it)
+                showNewPlaylist = false
+            },
+            onDismiss = { showNewPlaylist = false },
+        )
+    }
 
     val player = playerState.player
     if (fullscreen && !inPip && player != null && playerState.hasVideo) {
@@ -136,6 +179,7 @@ fun VideoDetailScreen(
 private fun VideoDetailContent(
     state: VideoDetailUiState,
     playerState: DetailPlayerState,
+    libraryState: DetailLibraryState,
     showInlineVideo: Boolean,
     onBack: () -> Unit,
     onRetry: () -> Unit,
@@ -143,6 +187,9 @@ private fun VideoDetailContent(
     onEnterFullscreen: () -> Unit,
     onQualityClick: () -> Unit,
     onToggleAudioOnly: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onSaveClick: () -> Unit,
+    onToggleSubscribe: () -> Unit,
     onVideoClick: (String) -> Unit,
 ) {
     Scaffold(
@@ -167,12 +214,16 @@ private fun VideoDetailContent(
             is VideoDetailUiState.Content -> DetailsList(
                 details = state.details,
                 playerState = playerState,
+                libraryState = libraryState,
                 showInlineVideo = showInlineVideo,
                 padding = padding,
                 onPlay = onPlay,
                 onEnterFullscreen = onEnterFullscreen,
                 onQualityClick = onQualityClick,
                 onToggleAudioOnly = onToggleAudioOnly,
+                onToggleFavorite = onToggleFavorite,
+                onSaveClick = onSaveClick,
+                onToggleSubscribe = onToggleSubscribe,
                 onVideoClick = onVideoClick,
             )
         }
@@ -183,12 +234,16 @@ private fun VideoDetailContent(
 private fun DetailsList(
     details: VideoDetails,
     playerState: DetailPlayerState,
+    libraryState: DetailLibraryState,
     showInlineVideo: Boolean,
     padding: PaddingValues,
     onPlay: () -> Unit,
     onEnterFullscreen: () -> Unit,
     onQualityClick: () -> Unit,
     onToggleAudioOnly: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onSaveClick: () -> Unit,
+    onToggleSubscribe: () -> Unit,
     onVideoClick: (String) -> Unit,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
@@ -205,8 +260,10 @@ private fun DetailsList(
             }
         }
         item(key = "header") { Header(details) }
-        item(key = "actions") { PlaybackActions(playerState, onPlay, onQualityClick, onToggleAudioOnly) }
-        item(key = "channel") { ChannelRow(details) }
+        item(key = "actions") {
+            PlaybackActions(playerState, libraryState, onPlay, onQualityClick, onToggleAudioOnly, onToggleFavorite, onSaveClick)
+        }
+        item(key = "channel") { ChannelRow(details, libraryState.isSubscribed, onToggleSubscribe) }
         if (details.description.content.isNotBlank()) {
             item(key = "description") { DescriptionCard(details.description) }
         }
@@ -256,12 +313,19 @@ private fun PlayableThumbnail(details: VideoDetails, playerState: DetailPlayerSt
 @Composable
 private fun PlaybackActions(
     playerState: DetailPlayerState,
+    libraryState: DetailLibraryState,
     onPlay: () -> Unit,
     onQualityClick: () -> Unit,
     onToggleAudioOnly: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onSaveClick: () -> Unit,
 ) {
+    // Scrolls sideways on narrow screens instead of squeezing the chips.
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -283,6 +347,23 @@ private fun PlaybackActions(
             onClick = onToggleAudioOnly,
             label = { Text(stringResource(R.string.settings_audio_only)) },
             leadingIcon = { Icon(Icons.Outlined.Headphones, contentDescription = null, Modifier.size(18.dp)) },
+        )
+        FilterChip(
+            selected = libraryState.isFavorite,
+            onClick = onToggleFavorite,
+            label = { Text(stringResource(R.string.favorite)) },
+            leadingIcon = {
+                Icon(
+                    if (libraryState.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = null,
+                    Modifier.size(18.dp),
+                )
+            },
+        )
+        AssistChip(
+            onClick = onSaveClick,
+            label = { Text(stringResource(R.string.playlist_save)) },
+            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = null, Modifier.size(18.dp)) },
         )
     }
 }
@@ -312,7 +393,7 @@ private fun Header(details: VideoDetails) {
 }
 
 @Composable
-private fun ChannelRow(details: VideoDetails) {
+private fun ChannelRow(details: VideoDetails, isSubscribed: Boolean, onToggleSubscribe: () -> Unit) {
     Column {
         HorizontalDivider()
         Row(
@@ -354,6 +435,14 @@ private fun ChannelRow(details: VideoDetails) {
                     )
                 }
             }
+            // Local subscription: nothing is sent to YouTube, it only feeds our own Feed tab.
+            if (details.uploaderUrl != null) {
+                if (isSubscribed) {
+                    FilledTonalButton(onClick = onToggleSubscribe) { Text(stringResource(R.string.channel_subscribed)) }
+                } else {
+                    Button(onClick = onToggleSubscribe) { Text(stringResource(R.string.channel_subscribe)) }
+                }
+            }
         }
         HorizontalDivider()
     }
@@ -392,3 +481,34 @@ private fun DescriptionCard(description: Description) {
 }
 
 private const val COLLAPSED_LINES = 3
+
+/** Checkbox list of playlists; ticking adds the video, unticking removes it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SaveToPlaylistSheet(
+    playlists: List<Playlist>,
+    inPlaylists: Set<Long>,
+    onToggle: (Long) -> Unit,
+    onNewPlaylist: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            stringResource(R.string.playlist_save_to),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        playlists.forEach { playlist ->
+            ListItem(
+                headlineContent = { Text(playlist.name) },
+                leadingContent = { Checkbox(checked = playlist.id in inPlaylists, onCheckedChange = { onToggle(playlist.id) }) },
+                modifier = Modifier.clickable { onToggle(playlist.id) },
+            )
+        }
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.playlist_new)) },
+            leadingContent = { Icon(Icons.Outlined.Add, contentDescription = null) },
+            modifier = Modifier.clickable(onClick = onNewPlaylist),
+        )
+    }
+}

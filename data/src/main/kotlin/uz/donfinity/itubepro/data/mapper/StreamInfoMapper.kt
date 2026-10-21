@@ -44,6 +44,7 @@ internal fun StreamInfo.toVideoDetails(): VideoDetails {
         title = name,
         thumbnailUrl = thumbnails.preferredUrl(Image.ResolutionLevel.HIGH),
         uploaderName = uploaderName.orEmpty(),
+        uploaderUrl = uploaderUrl?.takeIf { it.isNotBlank() },
         uploaderAvatarUrl = uploaderAvatars.preferredUrl(Image.ResolutionLevel.LOW),
         uploaderVerified = isUploaderVerified,
         // The extractor uses -1 for "unknown/hidden".

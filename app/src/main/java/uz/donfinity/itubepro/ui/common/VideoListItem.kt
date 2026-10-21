@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,9 +28,21 @@ import coil3.compose.AsyncImage
 import uz.donfinity.itubepro.R
 import uz.donfinity.itubepro.domain.model.VideoSummary
 
-/** One row in search results and related videos: thumbnail on the left, text on the right. */
+/**
+ * One row in search results, related videos and library lists: thumbnail on the left, text
+ * on the right.
+ *
+ * @param progress watched fraction (0..1) drawn as a bar on the thumbnail, or null.
+ * @param trailing optional action at the end of the row (e.g. a remove button).
+ */
 @Composable
-fun VideoListItem(video: VideoSummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun VideoListItem(
+    video: VideoSummary,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    progress: Float? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -41,6 +54,7 @@ fun VideoListItem(video: VideoSummary, onClick: () -> Unit, modifier: Modifier =
             url = video.thumbnailUrl,
             durationSeconds = video.durationSeconds,
             isLive = video.isLive,
+            progress = progress,
             modifier = Modifier.width(160.dp),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -68,6 +82,7 @@ fun VideoListItem(video: VideoSummary, onClick: () -> Unit, modifier: Modifier =
                 )
             }
         }
+        trailing?.invoke()
     }
 }
 
@@ -79,6 +94,7 @@ fun VideoThumbnail(
     isLive: Boolean,
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 8.dp,
+    progress: Float? = null,
 ) {
     Box(
         modifier
@@ -96,6 +112,16 @@ fun VideoThumbnail(
             isLive -> stringResource(R.string.badge_live)
             durationSeconds != null -> Formatters.duration(durationSeconds)
             else -> null
+        }
+        if (progress != null && progress > 0f) {
+            // Red "already watched" bar along the bottom, like YouTube.
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+                    .height(3.dp)
+                    .background(Color(0xFFFF0000)),
+            )
         }
         if (badge != null) {
             Text(

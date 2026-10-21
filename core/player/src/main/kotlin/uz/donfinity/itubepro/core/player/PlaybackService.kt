@@ -21,6 +21,8 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 import uz.donfinity.itubepro.core.player.media.YoutubeMediaSourceFactory
 import uz.donfinity.itubepro.domain.error.AppException
+import uz.donfinity.itubepro.domain.model.PlaybackSource
+import uz.donfinity.itubepro.domain.repository.HistoryRepository
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
 
 /**
@@ -39,6 +41,7 @@ class PlaybackService : MediaSessionService() {
 
     @Inject internal lateinit var resolver: MediaItemResolver
     @Inject internal lateinit var settings: SettingsRepository
+    @Inject internal lateinit var history: HistoryRepository
 
     private var session: MediaSession? = null
 
@@ -65,6 +68,7 @@ class PlaybackService : MediaSessionService() {
             .build()
 
         player.addListener(PlaybackRecovery(player, resolver, lifecycleScope))
+        player.addListener(PlaybackHistoryTracker(player, history, lifecycleScope))
         observeAudioOnly(player)
 
         setMediaNotificationProvider(
@@ -138,32 +142,86 @@ class PlaybackService : MediaSessionService() {
     private inner class SessionCallback : MediaSession.Callback {
         /**
          * Controllers send light MediaItems (mediaId = video URL). We resolve them to playable
-         * items here, asynchronously. Media3's default onSetMediaItems also routes through
-         * this method, so setMediaItem() from the UI ends up here too.
+         * items here, asynchronously, so extraction runs in the service.
          */
         override fun onAddMediaItems(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             mediaItems: List<MediaItem>,
-        ): ListenableFuture<List<MediaItem>> {
-            val future = SettableFuture.create<List<MediaItem>>()
-            lifecycleScope.launch {
-                try {
-                    future.set(mediaItems.map { resolver.resolve(it) })
-                } catch (e: CancellationException) {
-                    future.cancel(false)
-                    throw e
-                } catch (e: AppException) {
-                    // Tell the UI why nothing is playing (shown as a snackbar).
-                    mediaSession.sendError(controller, PlaybackErrors.toSessionError(e))
-                    future.setException(e)
-                }
-            }
-            return future
+        ): ListenableFuture<List<MediaItem>> = launchFuture(mediaSession, controller) {
+            mediaItems.map { resolver.resolve(it) }
         }
+
+        /**
+         * setMediaItem(s) from the UI. Same resolving as above, plus **resume**: if the UI
+         * didn't ask for a specific position, start where the user stopped last time.
+         */
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = launchFuture(mediaSession, controller) {
+            val resolved = mediaItems.map { resolver.resolve(it) }
+            val index = if (startIndex == C.INDEX_UNSET) 0 else startIndex
+            val position = if (startPositionMs == C.TIME_UNSET) {
+                resolved.getOrNull(index)?.let { resumePosition(it) } ?: C.TIME_UNSET
+            } else {
+                startPositionMs
+            }
+            MediaSession.MediaItemsWithStartPosition(resolved, index, position)
+        }
+    }
+
+    /**
+     * Saved position for [item], or TIME_UNSET (= from the start) when there's nothing useful
+     * to resume: never watched, only the first seconds, almost finished, or a live stream.
+     */
+    private suspend fun resumePosition(item: MediaItem): Long {
+        val source = item.localConfiguration?.tag as? PlaybackSource ?: return C.TIME_UNSET
+        if (source.liveHls != null) return C.TIME_UNSET
+        val saved = try {
+            history.positionOf(item.mediaId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null // history is best-effort
+        } ?: return C.TIME_UNSET
+        val durationMs = source.durationSeconds?.times(1000)
+        val nearEnd = durationMs != null && saved > durationMs - RESUME_END_MARGIN_MS
+        return if (saved < RESUME_MIN_POSITION_MS || nearEnd) C.TIME_UNSET else saved
+    }
+
+    /**
+     * Runs [block] in the service's scope and exposes it as the ListenableFuture Media3
+     * expects. Extraction errors go to the UI as a SessionError (shown as a snackbar).
+     */
+    private fun <T> launchFuture(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        block: suspend () -> T,
+    ): ListenableFuture<T> {
+        val future = SettableFuture.create<T>()
+        lifecycleScope.launch {
+            try {
+                future.set(block())
+            } catch (e: CancellationException) {
+                future.cancel(false)
+                throw e
+            } catch (e: AppException) {
+                session.sendError(controller, PlaybackErrors.toSessionError(e))
+                future.setException(e)
+            }
+        }
+        return future
     }
 
     private companion object {
         const val SEEK_INCREMENT_MS = 10_000L
+        /** Don't bother resuming the first few seconds. */
+        const val RESUME_MIN_POSITION_MS = 5_000L
+        /** Closer than this to the end counts as finished: start over. */
+        const val RESUME_END_MARGIN_MS = 10_000L
     }
 }

@@ -58,6 +58,8 @@ fun NowPlayingBar(
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    /** False when a bottom navigation bar below already handles the system navigation bar. */
+    padForNavigationBar: Boolean = true,
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
     SwipeToDismissBox(
@@ -67,7 +69,7 @@ fun NowPlayingBar(
         modifier = modifier,
     ) {
         Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.navigationBarsPadding()) {
+            Column(if (padForNavigationBar) Modifier.navigationBarsPadding() else Modifier) {
                 // Thin progress line on top, like YouTube's mini-player.
                 if (progress != null) {
                     LinearProgressIndicator(

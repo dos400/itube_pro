@@ -8,6 +8,7 @@ import androidx.media3.common.Player
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,13 +16,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import uz.donfinity.itubepro.core.player.PlayerConnection
 import uz.donfinity.itubepro.core.player.VideoQuality
 import uz.donfinity.itubepro.domain.error.AppException
+import uz.donfinity.itubepro.domain.model.Playlist
+import uz.donfinity.itubepro.domain.model.Subscription
 import uz.donfinity.itubepro.domain.model.VideoDetails
+import uz.donfinity.itubepro.domain.model.toSummary
+import uz.donfinity.itubepro.domain.repository.FavoritesRepository
+import uz.donfinity.itubepro.domain.repository.PlaylistRepository
 import uz.donfinity.itubepro.domain.repository.SettingsRepository
+import uz.donfinity.itubepro.domain.repository.SubscriptionRepository
 import uz.donfinity.itubepro.domain.usecase.GetVideoDetailsUseCase
 import uz.donfinity.itubepro.navigation.VideoDetailRoute
 import uz.donfinity.itubepro.ui.common.messageRes
@@ -45,6 +55,15 @@ data class DetailPlayerState(
     val playingHeight: Int = 0,
 )
 
+/** Library part of the screen: favorite heart, playlist checkboxes, subscribe button. */
+data class DetailLibraryState(
+    val isFavorite: Boolean = false,
+    val isSubscribed: Boolean = false,
+    val playlists: List<Playlist> = emptyList(),
+    /** IDs of playlists that already contain this video. */
+    val inPlaylists: Set<Long> = emptySet(),
+)
+
 /**
  * The route arguments (the video URL) arrive through SavedStateHandle. Navigation stores
  * them in the back stack entry, so they also survive process death.
@@ -55,6 +74,9 @@ class VideoDetailViewModel @Inject constructor(
     private val getVideoDetails: GetVideoDetailsUseCase,
     private val playerConnection: PlayerConnection,
     private val settings: SettingsRepository,
+    private val favorites: FavoritesRepository,
+    private val playlists: PlaylistRepository,
+    private val subscriptions: SubscriptionRepository,
 ) : ViewModel() {
 
     /** Also used as the player's mediaId, so "is this video playing?" is a plain comparison. */
@@ -80,6 +102,20 @@ class VideoDetailViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailPlayerState())
 
+    /** The loaded details, or null while loading / on error. */
+    private val details = _state.map { (it as? VideoDetailUiState.Content)?.details }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val libraryState: StateFlow<DetailLibraryState> = combine(
+        favorites.isFavorite(url),
+        playlists.observePlaylists(),
+        playlists.playlistsContaining(url),
+        // The channel URL is only known after loading, so switch to its flow once we have it.
+        details.flatMapLatest { d -> d?.uploaderUrl?.let(subscriptions::isSubscribed) ?: flowOf(false) },
+    ) { favorite, allPlaylists, containing, subscribed ->
+        DetailLibraryState(favorite, subscribed, allPlaylists, containing)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailLibraryState())
+
     private var loadJob: Job? = null
 
     init {
@@ -99,6 +135,41 @@ class VideoDetailViewModel @Inject constructor(
     }
 
     fun onSelectQuality(quality: VideoQuality?) = playerConnection.selectQuality(quality)
+
+    fun onToggleFavorite() {
+        val video = loadedDetails()?.toSummary() ?: return
+        viewModelScope.launch { favorites.setFavorite(video, !libraryState.value.isFavorite) }
+    }
+
+    fun onTogglePlaylist(playlistId: Long) {
+        val video = loadedDetails()?.toSummary() ?: return
+        viewModelScope.launch {
+            if (playlistId in libraryState.value.inPlaylists) {
+                playlists.removeVideo(playlistId, video.url)
+            } else {
+                playlists.addVideo(playlistId, video)
+            }
+        }
+    }
+
+    fun onCreatePlaylistWithVideo(name: String) {
+        val video = loadedDetails()?.toSummary() ?: return
+        viewModelScope.launch { playlists.addVideo(playlists.create(name), video) }
+    }
+
+    fun onToggleSubscribe() {
+        val d = loadedDetails() ?: return
+        val channelUrl = d.uploaderUrl ?: return
+        viewModelScope.launch {
+            if (libraryState.value.isSubscribed) {
+                subscriptions.unsubscribe(channelUrl)
+            } else {
+                subscriptions.subscribe(Subscription(channelUrl, d.uploaderName, d.uploaderAvatarUrl))
+            }
+        }
+    }
+
+    private fun loadedDetails(): VideoDetails? = (_state.value as? VideoDetailUiState.Content)?.details
 
     fun onToggleAudioOnly() {
         viewModelScope.launch { settings.setAudioOnly(!settings.audioOnly.first()) }

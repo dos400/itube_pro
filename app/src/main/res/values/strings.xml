@@ -11,6 +11,9 @@
     <string name="action_play">Play</string>
     <string name="action_pause">Pause</string>
     <string name="action_stop">Stop</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_remove">Remove</string>
     <string name="meta_separator">" · "</string>
     <string name="badge_live">LIVE</string>
 
@@ -58,6 +61,57 @@
     <string name="settings_battery">Battery optimization</string>
     <string name="settings_battery_restricted">Restricted. Android may stop playback with the screen off. Tap to allow background use.</string>
     <string name="settings_battery_unrestricted">Unrestricted. Background playback is allowed.</string>
+
+    <!-- Tabs -->
+    <string name="tab_search">Search</string>
+    <string name="tab_feed">Feed</string>
+    <string name="tab_library">Library</string>
+
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <string name="library_history">History</string>
+    <string name="library_favorites">Favorites</string>
+    <string name="library_subscriptions">Subscriptions</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="library_playlists_empty">No playlists yet.</string>
+    <plurals name="video_count">
+        <item quantity="one">%1$d video</item>
+        <item quantity="other">%1$d videos</item>
+    </plurals>
+    <plurals name="channel_count">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
+    </plurals>
+    <string name="history_empty">Videos you watch will show up here.</string>
+    <string name="history_clear">Clear watch history</string>
+    <string name="history_clear_message">This removes all videos and resume positions from your history.</string>
+    <string name="history_clear_confirm">Clear</string>
+    <string name="favorite">Favorite</string>
+    <string name="favorite_remove">Remove from favorites</string>
+    <string name="favorites_empty">Tap Favorite on a video to keep it here.</string>
+    <string name="playlist_new">New playlist</string>
+    <string name="playlist_name">Name</string>
+    <string name="playlist_rename">Rename playlist</string>
+    <string name="playlist_delete">Delete playlist</string>
+    <string name="playlist_delete_message">The playlist will be deleted. The videos stay on YouTube.</string>
+    <string name="playlist_delete_confirm">Delete</string>
+    <string name="playlist_empty">This playlist is empty. Use Save on a video to add it.</string>
+    <string name="playlist_save">Save</string>
+    <string name="playlist_save_to">Save to…</string>
+    <string name="subscriptions_empty">Subscribe to channels from a video page.</string>
+    <string name="channel_subscribe">Subscribe</string>
+    <string name="channel_subscribed">Subscribed</string>
+    <string name="channel_unsubscribe">Unsubscribe</string>
+
+    <!-- Feed -->
+    <string name="feed_title">Feed</string>
+    <string name="feed_no_subscriptions">Subscribe to channels and their new videos appear here. Subscriptions stay on this phone; nothing is sent to YouTube.</string>
+    <string name="feed_loading">Loading your feed…</string>
+    <string name="feed_empty">No videos yet. Pull down to refresh.</string>
+    <plurals name="feed_channels_failed">
+        <item quantity="one">%1$d channel couldn\'t be refreshed.</item>
+        <item quantity="other">%1$d channels couldn\'t be refreshed.</item>
+    </plurals>
 
     <!-- Errors -->
     <string name="error_network">No connection. Check your internet and try again.</string>

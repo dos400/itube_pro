@@ -8,6 +8,8 @@ data class VideoDetails(
     val title: String,
     val thumbnailUrl: String?,
     val uploaderName: String,
+    /** Channel URL, needed to subscribe. Null if the extractor couldn't find it. */
+    val uploaderUrl: String?,
     val uploaderAvatarUrl: String?,
     val uploaderVerified: Boolean,
     /** Null when hidden or unknown. */

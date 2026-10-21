@@ -1,6 +1,7 @@
 package uz.donfinity.itubepro.ui.common
 
 import android.icu.text.CompactDecimalFormat
+import android.text.format.DateUtils
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.pluralStringResource
 import java.time.Instant
@@ -29,6 +30,14 @@ object Formatters {
     fun compactCount(count: Long): String =
         CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT)
             .format(count)
+
+    /** "3 hours ago", "2 days ago"… in the device language. */
+    fun relative(instant: Instant): String =
+        DateUtils.getRelativeTimeSpanString(
+            instant.toEpochMilli(),
+            System.currentTimeMillis(),
+            DateUtils.MINUTE_IN_MILLIS,
+        ).toString()
 
     fun date(instant: Instant): String =
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)

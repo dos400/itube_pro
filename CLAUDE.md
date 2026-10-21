@@ -82,6 +82,15 @@ UI ─MediaItem(mediaId=url)→ MediaController ══IPC══ MediaSession (Pl
 Errors: 403 → PlaybackRecovery re-resolves (forceRefresh) + seeks back; network → re-prepare.
 ```
 
+## Local database (Phase 5)
+
+Room, file `itubepro.db`, schema JSON in `data/schemas/` (commit it). Tables: `videos` (shared
+display data) ← `watch_history`, `favorites`, `playlist_items` → `playlists`;
+`subscriptions` ← `feed_items`; `feed_state`. Changing an entity means bumping
+`AppDatabase.version` and adding a Migration. **Never** use destructive fallback.
+Watch history + resume positions are written by `PlaybackHistoryTracker` inside the service.
+Resume happens in `PlaybackService.onSetMediaItems`.
+
 ## Lessons learned
 
 ### Phase 1 – Foundation
@@ -179,3 +188,19 @@ Errors: 403 → PlaybackRecovery re-resolves (forceRefresh) + seeks back; networ
 - Live: YouTube live = HLS only (`media3-exoplayer-hls`). NewPipe disables `rn`/`range` for HLS.
   `ERROR_CODE_BEHIND_LIVE_WINDOW` → `seekToDefaultPosition()` + `prepare()`.
 - **Testing:** don't run the emulator on the dev Mac (overheats). Verify on a real phone.
+
+### Phase 5 – Room library
+- Video URL as primary key everywhere; ForeignKey + CASCADE does the cleanup (delete playlist →
+  items, unsubscribe → feed). Index foreign-key columns, or every parent delete scans the table.
+- Flow-returning DAO queries re-emit after any write to their tables, so the detail screen's
+  heart and the Favorites list stay in sync with no manual refresh.
+- Multi-step writes (`videos` row + history/favorite/playlist row) go in `db.withTransaction`.
+- History is written in the service (works with screen off). Failures are logged, never thrown:
+  a database problem must not stop playback.
+- Resume = `onSetMediaItems` returning `MediaItemsWithStartPosition`. Skip resuming the first 5 s,
+  and restart from 0 if the saved position is within 10 s of the end.
+- Feed: RSS `FeedInfo` per channel (ref/NewPipe "fast mode"), max 4 in parallel with `Semaphore`.
+  Errors are *returned* per channel instead of thrown, so one bad channel can't cancel the rest.
+- `flatMapLatest` turns "the channel URL isn't known until details load" into a clean
+  subscribed-state Flow.
+- Subscriptions are local only. Nothing is sent to YouTube (no account).
