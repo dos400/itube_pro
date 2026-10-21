@@ -168,17 +168,25 @@ class PlaybackService : MediaSessionService() {
          * Our own UI may also send the SponsorBlock "Undo" custom command. Custom commands must
          * be listed in the connection result, or the session rejects them. Other apps keep
          * Media3's defaults.
+         *
+         * Careful (bug found on a real phone): in Media3 1.11, super.onConnect() returns a
+         * *placeholder* result with EMPTY command sets. Media3 recognises that exact object and
+         * only then substitutes the real defaults. Copying its commands into a new result
+         * therefore gave our UI no player commands at all ("Controller isn't allowed to call
+         * command=31"), so nothing could be played. So for our app we build the result from
+         * the explicit defaults instead of from super's result.
          */
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
-            val result = super.onConnect(session, controller)
-            if (controller.packageName != packageName || !result.isAccepted) return result
+            if (controller.packageName != packageName) return super.onConnect(session, controller)
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
-                .setAvailablePlayerCommands(result.availablePlayerCommands)
+                .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
                 .setAvailableSessionCommands(
-                    result.availableSessionCommands.buildUpon().add(SponsorBlockProtocol.UNDO_COMMAND).build(),
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                        .add(SponsorBlockProtocol.UNDO_COMMAND)
+                        .build(),
                 )
                 .build()
         }

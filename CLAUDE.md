@@ -248,3 +248,16 @@ Resume happens in `PlaybackService.onSetMediaItems`.
 - One-off events go through a `Channel` (FeedViewModel), so `messages.first()` in a test gets
   exactly the event that was sent.
 - Template leftovers removed (unused colors, redundant activity label, mipmap-anydpi-v26).
+
+### Bug fix after Phase 7 – "Play spins forever" (found on a real phone)
+- Symptom: tapping Play showed a spinner forever, with no error. Session state `NONE`, platform
+  actions=128, and logcat `MCImplBase: Controller isn't allowed to call command= 31`.
+- Cause: Phase 6's `onConnect` copied `super.onConnect()`'s commands. In Media3 1.11 that's a
+  *placeholder* result with EMPTY commands, recognised by object identity. Copying it gave our
+  UI zero player commands.
+- Fix: for our package, build `AcceptedResultBuilder(session, controller)` from
+  `DEFAULT_PLAYER_COMMANDS` / `DEFAULT_SESSION_COMMANDS` + custom commands. For everyone else,
+  return `super.onConnect()` unchanged.
+- Lessons: test every phase that touches the session on a device. When "nothing happens",
+  read the **whole** process log (`adb logcat --pid`), not just your own tags. Media3 warns
+  (W/MCImplBase) instead of throwing.
