@@ -40,7 +40,7 @@ class CheckForUpdateUseCaseTest {
     }
 
     @Test
-    fun `local build without update repo never asks the network`() = runTest {
+    fun `no update repo means no network request`() = runTest {
         val repo = FakeRepository(release(99))
         assertNull(CheckForUpdateUseCase(repo, app(1, repo = ""))())
         assertEquals(emptyList<String>(), repo.requested)

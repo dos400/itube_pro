@@ -51,8 +51,8 @@ jobs:
 
       # The phone's app is signed with the Mac's ~/.android/debug.keystore. Android only
       # accepts an update signed with the same key, so CI must use that exact file.
-      # Without the secret, AGP would silently create a new key and the update would fail
-      # on the phone, so stop here instead.
+      # app/build.gradle.kts reads it from SIGNING_KEYSTORE (an explicit path: AGP's implicit
+      # debug keystore was ignored here and v16/v17 got a random key).
       - name: Restore signing key
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
@@ -61,15 +61,30 @@ jobs:
             echo "::error::Secret DEBUG_KEYSTORE_BASE64 is missing (Settings → Secrets and variables → Actions)."
             exit 1
           fi
-          mkdir -p ~/.android
-          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep 'SHA256:'
+          KEYSTORE="$RUNNER_TEMP/signing.keystore"
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          echo "SIGNING_KEYSTORE=$KEYSTORE" >> "$GITHUB_ENV"
 
       - name: Unit tests
         run: ./gradlew :domain:test testDebugUnitTest
 
       - name: Build release APK
         run: ./gradlew assembleRelease -PupdateRepo=${{ github.repository }}
+
+      # Never publish an APK the phone would reject. The expected value is the certificate
+      # of the installed app (`apksigner verify --print-certs`), not a secret.
+      - name: Check the APK's signing certificate
+        env:
+          EXPECTED_CERT_SHA256: 9d8c13a90f893943b6eae783e1e17b09aafd3d378fab2f6e8df92a2450e33f03
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          ACTUAL=$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          echo "APK certificate: $ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::APK is signed with the wrong key ($ACTUAL); the phone would refuse the update."
+            exit 1
+          fi
 
       - name: Publish GitHub release
         env:

@@ -213,10 +213,11 @@ fun AppNavHost(
                 val openVideo: (String) -> Unit = { navController.navigate(VideoDetailRoute(it)) }
                 val back: () -> Unit = { navController.popBackStack() }
                 val openChannel: (String) -> Unit = { navController.navigate(ChannelRoute(it)) }
+                val openSettings: () -> Unit = { navController.navigate(SettingsRoute) { launchSingleTop = true } }
 
-                composable<HomeRoute> { HomeScreen(onVideoClick = openVideo) }
+                composable<HomeRoute> { HomeScreen(onVideoClick = openVideo, onOpenSettings = openSettings) }
                 composable<SearchRoute> {
-                    SearchScreen(onVideoClick = openVideo, onOpenSettings = { navController.navigate(SettingsRoute) })
+                    SearchScreen(onVideoClick = openVideo, onOpenSettings = openSettings)
                 }
                 composable<FeedRoute> { FeedScreen(onVideoClick = openVideo) }
                 composable<LibraryRoute> {
@@ -225,6 +226,7 @@ fun AppNavHost(
                         onOpenFavorites = { navController.navigate(FavoritesRoute) },
                         onOpenSubscriptions = { navController.navigate(SubscriptionsRoute) },
                         onOpenPlaylist = { navController.navigate(PlaylistRoute(it)) },
+                        onOpenSettings = openSettings,
                     )
                 }
                 composable<VideoDetailRoute> {

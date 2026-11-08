@@ -3,8 +3,8 @@ package uz.donfinity.itubepro.domain.model
 /**
  * Facts about the running build, provided by `:app` (from BuildConfig).
  *
- * [updateRepo] is the GitHub "owner/name" whose releases we update from. It's empty in local
- * builds: only CI builds (which pass `-PupdateRepo`) check for updates.
+ * [updateRepo] is the GitHub "owner/name" whose releases we update from (`updateRepo` in
+ * gradle.properties). Empty means "don't check".
  */
 data class AppInfo(
     val versionCode: Int,

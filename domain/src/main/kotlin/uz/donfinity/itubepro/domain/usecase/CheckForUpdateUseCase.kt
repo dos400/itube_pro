@@ -6,7 +6,7 @@ import uz.donfinity.itubepro.domain.repository.AppUpdateRepository
 
 /**
  * Returns the latest release if it's newer than the running build, otherwise null.
- * Local builds (no update repo configured) never ask the network.
+ * Without an update repo configured it never asks the network.
  */
 class CheckForUpdateUseCase(
     private val repository: AppUpdateRepository,

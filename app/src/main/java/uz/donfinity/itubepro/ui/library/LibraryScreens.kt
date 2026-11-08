@@ -60,6 +60,7 @@ import uz.donfinity.itubepro.domain.model.Playlist
 import uz.donfinity.itubepro.ui.common.ConfirmDialog
 import uz.donfinity.itubepro.ui.common.LoadingState
 import uz.donfinity.itubepro.ui.common.NameDialog
+import uz.donfinity.itubepro.ui.common.SettingsAction
 import uz.donfinity.itubepro.ui.common.VideoListItem
 
 // ---- Library (top-level tab) ----
@@ -71,12 +72,20 @@ fun LibraryScreen(
     onOpenFavorites: () -> Unit,
     onOpenSubscriptions: () -> Unit,
     onOpenPlaylist: (Long) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val overview by viewModel.overview.collectAsStateWithLifecycle()
     var showNewPlaylist by rememberSaveable { mutableStateOf(false) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.library_title)) }) }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.library_title)) },
+                actions = { SettingsAction(onOpenSettings) },
+            )
+        },
+    ) { padding ->
         val data = overview
         if (data == null) {
             LoadingState(Modifier.padding(padding))

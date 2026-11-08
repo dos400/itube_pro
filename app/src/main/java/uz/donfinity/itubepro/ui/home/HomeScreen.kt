@@ -36,11 +36,13 @@ import uz.donfinity.itubepro.domain.model.Recommendations
 import uz.donfinity.itubepro.ui.common.ErrorState
 import uz.donfinity.itubepro.ui.common.LoadingState
 import uz.donfinity.itubepro.ui.common.MessageState
+import uz.donfinity.itubepro.ui.common.SettingsAction
 import uz.donfinity.itubepro.ui.common.VideoListItem
 
 @Composable
 fun HomeScreen(
     onVideoClick: (String) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -50,6 +52,7 @@ fun HomeScreen(
         onRefresh = viewModel::onRefresh,
         onRefreshErrorShown = viewModel::onRefreshErrorShown,
         onVideoClick = onVideoClick,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -61,6 +64,7 @@ private fun HomeContent(
     onRefresh: () -> Unit,
     onRefreshErrorShown: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
@@ -73,7 +77,12 @@ private fun HomeContent(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.app_name)) },
+                actions = { SettingsAction(onOpenSettings) },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         when (state) {

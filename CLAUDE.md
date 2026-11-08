@@ -310,11 +310,15 @@ Resume happens in `PlaybackService.onSetMediaItems`.
   → GitHub release `v<versionCode>` with the APK attached.
 - `versionCode` = `git rev-list --count HEAD`, so CI needs `fetch-depth: 0`. Rewriting main's
   history would lower it and stop updates.
-- Signing: release uses the **debug** signing config. CI restores the Mac's
-  `~/.android/debug.keystore` from secret `DEBUG_KEYSTORE_BASE64`, so updates install over the
-  existing phone install. A different key = uninstall = Room data lost.
-- App side: `CheckForUpdateUseCase` (skipped when `BuildConfig.UPDATE_REPO` is empty, i.e.
-  local builds) → `GitHubReleaseRepository` (unauthenticated GitHub API, public repo).
+- Signing: every build uses the `shared` signing config = the Mac's `~/.android/debug.keystore`
+  (path from `SIGNING_KEYSTORE` env, else that default). CI restores it from secret
+  `DEBUG_KEYSTORE_BASE64` and **checks the APK's certificate SHA-256** before publishing.
+  Don't rely on AGP's implicit debug keystore in CI: it ignored the restored file and signed
+  v16/v17 with a random key, which the phone refuses (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+  A different key = uninstall = Room data lost.
+- App side: `CheckForUpdateUseCase` → `GitHubReleaseRepository` (unauthenticated GitHub API,
+  public repo). The repo comes from `updateRepo` in gradle.properties, so Android Studio builds
+  check for updates too (the phone often runs one).
   `UpdateViewModel` is Activity-scoped (created in AppNavHost, passed to Settings).
   `ApkInstaller` streams the APK into a `PackageInstaller` session; `InstallStatusReceiver`
   opens the system confirmation dialog.

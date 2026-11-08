@@ -14,8 +14,8 @@ val commitCount: Int = runCatching {
         .standardOutput.asText.get().trim().toInt()
 }.getOrDefault(1)
 
-// GitHub "owner/name" to update from. CI passes -PupdateRepo=$GITHUB_REPOSITORY; local
-// builds leave it empty, which turns the update check off.
+// GitHub "owner/name" to update from (gradle.properties; CI also passes
+// -PupdateRepo=$GITHUB_REPOSITORY). Empty turns the update check off.
 val updateRepo: String = providers.gradleProperty("updateRepo").getOrElse("")
 
 android {
@@ -35,15 +35,35 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // One key for every build, local and CI: the Mac's debug keystore. Android only installs
+    // an update signed with the same key as the installed app, and the phone has Android
+    // Studio builds signed with that file. The path is explicit on purpose: relying on AGP's
+    // implicit debug keystore made CI sign with a fresh random key (v16/v17 couldn't update).
+    // CI restores the file from a secret and points SIGNING_KEYSTORE at it (release.yml).
+    val sharedKeystore = file(
+        providers.environmentVariable("SIGNING_KEYSTORE")
+            .getOrElse("${System.getProperty("user.home")}/.android/debug.keystore"),
+    )
+    signingConfigs {
+        create("shared") {
+            storeFile = sharedKeystore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            // Only if the file exists: CI's extractor-bump job builds debug without the key.
+            if (sharedKeystore.exists()) signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             optimization {
                 enable = false
             }
-            // Signed with the debug key on purpose: the phone already has a debug build
-            // signed with ~/.android/debug.keystore, and Android only installs an update
-            // signed with the same key. CI restores that same keystore from a secret.
-            signingConfig = signingConfigs.getByName("debug")
+            // No fallback: a release signed with any other key couldn't update the phone.
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
     compileOptions {

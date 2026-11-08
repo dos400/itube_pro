@@ -26,7 +26,7 @@ import uz.donfinity.itubepro.system.ApkInstaller
 import uz.donfinity.itubepro.ui.common.messageRes
 
 sealed interface UpdateState {
-    /** Local build (no update repo), so there's nothing to check. */
+    /** No update repo configured, so there's nothing to check. */
     data object Disabled : UpdateState
     data object Idle : UpdateState
     data object Checking : UpdateState
