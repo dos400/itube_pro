@@ -88,7 +88,9 @@ jobs:
             exit 1
           fi
           echo "$CERTS"
-          ACTUAL=$(echo "$CERTS" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          # Older apksigner prints "Signer #1 certificate SHA-256 digest: …", build-tools 37
+          # prints "V2 Signer: certificate SHA-256 digest: …". Take the first one either way.
+          ACTUAL=$(echo "$CERTS" | sed -n 's/^.*certificate SHA-256 digest: //p' | head -1)
           echo "APK certificate: $ACTUAL"
           if [ "$ACTUAL" != "$EXPECTED_CERT_SHA256" ]; then
             echo "::error::APK is signed with the wrong key ($ACTUAL); the phone would refuse the update."
