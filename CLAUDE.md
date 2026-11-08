@@ -316,6 +316,9 @@ Resume happens in `PlaybackService.onSetMediaItems`.
   Don't rely on AGP's implicit debug keystore in CI: it ignored the restored file and signed
   v16/v17 with a random key, which the phone refuses (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
   A different key = uninstall = Room data lost.
+- CI shell steps run `bash -e` **without pipefail**: a failing command inside `$(… | sed)` just
+  yields an empty string. Capture output and check the exit code explicitly. build-tools 37's
+  apksigner prints `V2 Signer: certificate SHA-256 digest:` (older: `Signer #1 certificate …`).
 - App side: `CheckForUpdateUseCase` → `GitHubReleaseRepository` (unauthenticated GitHub API,
   public repo). The repo comes from `updateRepo` in gradle.properties, so Android Studio builds
   check for updates too (the phone often runs one).
