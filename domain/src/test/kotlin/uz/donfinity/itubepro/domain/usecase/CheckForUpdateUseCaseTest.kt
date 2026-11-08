@@ -19,7 +19,7 @@ class CheckForUpdateUseCaseTest {
     }
 
     private fun release(code: Int) = AppRelease(code, "1.$code", "https://example.com/$code.apk", 1L)
-    private fun app(code: Int, repo: String = "me/itubepro") = AppInfo(code, "1.$code", repo)
+    private fun app(code: Int, repo: String = "me/itubepro") = AppInfo(code, "1.$code", repo, lastUpdatedAtMillis = 0L)
 
     @Test
     fun `newer release is offered`() = runTest {

@@ -35,6 +35,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uz.donfinity.itubepro.R
 import uz.donfinity.itubepro.domain.model.SegmentCategory
+import java.time.Instant
+import uz.donfinity.itubepro.ui.common.Formatters
 import uz.donfinity.itubepro.ui.common.labelRes
 import uz.donfinity.itubepro.ui.update.UpdateState
 import uz.donfinity.itubepro.ui.update.UpdateViewModel
@@ -69,6 +71,7 @@ fun SettingsScreen(
         sponsorBlockCategories = sponsorBlockCategories,
         updateState = updateState,
         versionName = updateViewModel.currentVersionName,
+        lastUpdated = updateViewModel.lastUpdated,
         onBack = onBack,
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
         onAutoplayNextChange = viewModel::onAutoplayNextChange,
@@ -97,6 +100,7 @@ private fun SettingsContent(
     sponsorBlockCategories: Set<SegmentCategory>,
     updateState: UpdateState,
     versionName: String,
+    lastUpdated: Instant,
     onBack: () -> Unit,
     onAudioOnlyChange: (Boolean) -> Unit,
     onAutoplayNextChange: (Boolean) -> Unit,
@@ -176,7 +180,12 @@ private fun SettingsContent(
             }
             ListItem(
                 headlineContent = { Text(stringResource(R.string.update_title)) },
-                supportingContent = { Text(updateSummary(updateState, versionName)) },
+                supportingContent = {
+                    Column {
+                        Text(stringResource(R.string.update_version, versionName, Formatters.dateTime(lastUpdated)))
+                        Text(updateSummary(updateState))
+                    }
+                },
                 leadingContent = { Icon(Icons.Outlined.SystemUpdate, contentDescription = null) },
                 modifier = Modifier.clickable(enabled = updateState != UpdateState.Disabled, onClick = onUpdateClick),
             )
@@ -190,11 +199,11 @@ private fun SettingsContent(
 }
 
 @Composable
-private fun updateSummary(state: UpdateState, versionName: String): String = when (state) {
-    UpdateState.Disabled -> stringResource(R.string.update_disabled, versionName)
-    UpdateState.Idle -> stringResource(R.string.update_idle, versionName)
+private fun updateSummary(state: UpdateState): String = when (state) {
+    UpdateState.Disabled -> stringResource(R.string.update_disabled)
+    UpdateState.Idle -> stringResource(R.string.update_idle)
     UpdateState.Checking -> stringResource(R.string.update_checking)
-    UpdateState.UpToDate -> stringResource(R.string.update_up_to_date, versionName)
+    UpdateState.UpToDate -> stringResource(R.string.update_up_to_date)
     is UpdateState.Available -> stringResource(R.string.update_available, state.release.versionName)
     is UpdateState.Downloading ->
         stringResource(R.string.update_downloading, state.release.versionName, (state.progress * 100).toInt())

@@ -10,6 +10,8 @@ data class AppInfo(
     val versionCode: Int,
     val versionName: String,
     val updateRepo: String,
+    /** When this version was installed (first install or last update), epoch millis. */
+    val lastUpdatedAtMillis: Long,
 )
 
 /** A GitHub release that carries an APK. Its tag is `v<versionCode>` (see release.yml). */

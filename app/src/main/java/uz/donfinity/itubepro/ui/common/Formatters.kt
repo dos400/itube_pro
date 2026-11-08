@@ -44,6 +44,13 @@ object Formatters {
             .withLocale(Locale.getDefault())
             .withZone(ZoneId.systemDefault())
             .format(instant)
+
+    /** "8 Nov 2026, 06:40" in the device's format. */
+    fun dateTime(instant: Instant): String =
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+            .withLocale(Locale.getDefault())
+            .withZone(ZoneId.systemDefault())
+            .format(instant)
 }
 
 /**

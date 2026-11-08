@@ -6,6 +6,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Job
@@ -57,6 +58,9 @@ class UpdateViewModel @Inject constructor(
 ) : ViewModel() {
 
     val currentVersionName: String = appInfo.versionName
+
+    /** When this version was installed, i.e. the last update. */
+    val lastUpdated: Instant = Instant.ofEpochMilli(appInfo.lastUpdatedAtMillis)
 
     private val _state = MutableStateFlow<UpdateState>(
         if (appInfo.updateRepo.isBlank()) UpdateState.Disabled else UpdateState.Idle,

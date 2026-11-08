@@ -166,10 +166,11 @@
 
     <!-- In-app updates (ui/update, system/ApkInstaller) -->
     <string name="update_title">App updates</string>
-    <string name="update_disabled">Version %1$s. Local build: only GitHub builds update themselves.</string>
-    <string name="update_idle">Version %1$s. Tap to check for updates.</string>
+    <string name="update_version">Version %1$s · updated %2$s</string>
+    <string name="update_disabled">Local build: only GitHub builds update themselves.</string>
+    <string name="update_idle">Tap to check for updates.</string>
     <string name="update_checking">Checking for updates…</string>
-    <string name="update_up_to_date">Version %1$s. You have the latest version.</string>
+    <string name="update_up_to_date">You have the latest version.</string>
     <string name="update_available">%1$s is available. Tap to install.</string>
     <string name="update_downloading">Downloading %1$s… %2$d%%</string>
     <string name="update_installing">Waiting for the installer… Tap if nothing appears.</string>
