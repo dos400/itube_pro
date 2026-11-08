@@ -7,6 +7,11 @@
          restricts this permission; fine for a sideloaded app. Player permissions live in
          :core:player's manifest and are merged in. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- In-app updates (system/ApkInstaller.kt). The user still has to allow
+         "Install unknown apps" for itube pro once. UPDATE_PACKAGES_WITHOUT_USER_ACTION lets
+         Android 12+ skip the confirmation dialog for later updates. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application
         android:name=".ItubeApp"
@@ -35,6 +40,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Only the system's PackageInstaller calls this, through our own PendingIntent. -->
+        <receiver
+            android:name=".system.InstallStatusReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

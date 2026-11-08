@@ -1,11 +1,17 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # itube pro
 
 Personal, ad-free YouTube client for Android. Learning project, sideloaded APK only.
+Root package: `uz.donfinity.itubepro` (modules add `.domain`, `.data`, `.core.player`).
 
 ## Build
 
 ```
 ./gradlew assembleDebug        # must pass with zero errors before any phase is "done"
+./gradlew lintDebug            # run before committing (only lint checks @UnstableApi opt-ins)
 ```
 
 Toolchain: AGP 9.3 (built-in Kotlin, so no `kotlin-android` plugin), Gradle 9.5, Kotlin 2.4.21,
@@ -19,9 +25,14 @@ AGP 9 would otherwise use its own bundled (older) Kotlin.
 
 ```
 ./gradlew :domain:test testDebugUnitTest   # JVM unit tests, no device or emulator needed
+
+# single class / method (:domain is plain JVM → `test`; Android modules → `testDebugUnitTest`)
+./gradlew :domain:test --tests "*StreamSelectorTest"
+./gradlew :data:testDebugUnitTest --tests "*DashManifestMergerTest"
+./gradlew :app:testDebugUnitTest --tests "*SearchViewModelTest.someTestName"
 ```
 
-- `:domain`: StreamSelector, SkipSegments.merge, use cases (fake repositories).
+- `:domain`: StreamSelector, SkipSegments.merge, RecommendationMixer, use cases (fake repositories).
 - `:data`: DashManifestMerger, PageTokenCodec, ExceptionMapper (`when` order!), StreamInfoCache
   (injected clock). No network in unit tests.
 - `:app`: SearchViewModel, FeedViewModel, DebugExtractionViewModel with hand-written fakes and
@@ -289,3 +300,21 @@ Resume happens in `PlaybackService.onSetMediaItems`.
 - One failing seed doesn't fail the screen (errors are collected as `Result`s, not thrown).
   Nothing to go on → trending kiosk (`NewPipeTrendingRepository`), falling back to `trending_music`
   if the default kiosk fails or comes back empty.
+
+### In-app updates + automatic extractor bumps (CI)
+- `.github/workflows/extractor-bump.yml` (daily): reads `teamnewpipe-newpipe-extractor` from
+  NewPipe's `dev` toml; if it differs, bumps `newpipeExtractor`, runs tests + `assembleDebug`, and
+  commits only if they pass. Then it *calls* `release.yml`, because pushes made with
+  `GITHUB_TOKEN` don't trigger other workflows. An API break fails the run and nothing gets committed.
+- `release.yml` (push to main, manual, or called): `assembleRelease -PupdateRepo=$GITHUB_REPOSITORY`
+  → GitHub release `v<versionCode>` with the APK attached.
+- `versionCode` = `git rev-list --count HEAD`, so CI needs `fetch-depth: 0`. Rewriting main's
+  history would lower it and stop updates.
+- Signing: release uses the **debug** signing config. CI restores the Mac's
+  `~/.android/debug.keystore` from secret `DEBUG_KEYSTORE_BASE64`, so updates install over the
+  existing phone install. A different key = uninstall = Room data lost.
+- App side: `CheckForUpdateUseCase` (skipped when `BuildConfig.UPDATE_REPO` is empty, i.e.
+  local builds) → `GitHubReleaseRepository` (unauthenticated GitHub API, public repo).
+  `UpdateViewModel` is Activity-scoped (created in AppNavHost, passed to Settings).
+  `ApkInstaller` streams the APK into a `PackageInstaller` session; `InstallStatusReceiver`
+  opens the system confirmation dialog.

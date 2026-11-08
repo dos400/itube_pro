@@ -6,6 +6,18 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// versionCode = number of commits on HEAD, so every new commit builds a higher version and
+// Android accepts it as an update. release.yml tags each GitHub release v<versionCode> the
+// same way, and the in-app updater compares against it. Falls back to 1 without git.
+val commitCount: Int = runCatching {
+    providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
+        .standardOutput.asText.get().trim().toInt()
+}.getOrDefault(1)
+
+// GitHub "owner/name" to update from. CI passes -PupdateRepo=$GITHUB_REPOSITORY; local
+// builds leave it empty, which turns the update check off.
+val updateRepo: String = providers.gradleProperty("updateRepo").getOrElse("")
+
 android {
     namespace = "uz.donfinity.itubepro"
     compileSdk {
@@ -16,8 +28,9 @@ android {
         applicationId = "uz.donfinity.itubepro"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = commitCount
+        versionName = "1.$commitCount"
+        buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -27,6 +40,10 @@ android {
             optimization {
                 enable = false
             }
+            // Signed with the debug key on purpose: the phone already has a debug build
+            // signed with ~/.android/debug.keystore, and Android only installs an update
+            // signed with the same key. CI restores that same keystore from a secret.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -37,6 +54,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

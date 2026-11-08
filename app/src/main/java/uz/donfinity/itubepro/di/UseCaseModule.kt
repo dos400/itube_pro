@@ -4,12 +4,15 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
+import uz.donfinity.itubepro.domain.model.AppInfo
+import uz.donfinity.itubepro.domain.repository.AppUpdateRepository
 import uz.donfinity.itubepro.domain.repository.FavoritesRepository
 import uz.donfinity.itubepro.domain.repository.HistoryRepository
 import uz.donfinity.itubepro.domain.repository.SearchRepository
 import uz.donfinity.itubepro.domain.repository.SubscriptionRepository
 import uz.donfinity.itubepro.domain.repository.TrendingRepository
 import uz.donfinity.itubepro.domain.repository.VideoRepository
+import uz.donfinity.itubepro.domain.usecase.CheckForUpdateUseCase
 import uz.donfinity.itubepro.domain.usecase.GetRecommendationsUseCase
 import uz.donfinity.itubepro.domain.usecase.GetSearchSuggestionsUseCase
 import uz.donfinity.itubepro.domain.usecase.GetVideoDetailsUseCase
@@ -45,4 +48,8 @@ object UseCaseModule {
         videos: VideoRepository,
         trending: TrendingRepository,
     ) = GetRecommendationsUseCase(history, favorites, subscriptions, videos, trending)
+
+    @Provides
+    fun provideCheckForUpdate(repository: AppUpdateRepository, appInfo: AppInfo) =
+        CheckForUpdateUseCase(repository, appInfo)
 }

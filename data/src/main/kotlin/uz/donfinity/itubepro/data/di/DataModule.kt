@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import uz.donfinity.itubepro.data.db.AppDatabase
+import uz.donfinity.itubepro.data.repository.GitHubReleaseRepository
 import uz.donfinity.itubepro.data.repository.NewPipeChannelRepository
 import uz.donfinity.itubepro.data.repository.NewPipePlaybackRepository
 import uz.donfinity.itubepro.data.repository.NewPipeSearchRepository
@@ -30,6 +31,7 @@ import uz.donfinity.itubepro.data.repository.RoomPlaylistRepository
 import uz.donfinity.itubepro.data.repository.SponsorBlockApiRepository
 import uz.donfinity.itubepro.data.repository.NewPipeVideoRepository
 import uz.donfinity.itubepro.data.settings.DataStoreSettingsRepository
+import uz.donfinity.itubepro.domain.repository.AppUpdateRepository
 import uz.donfinity.itubepro.domain.repository.ChannelRepository
 import uz.donfinity.itubepro.domain.repository.FavoritesRepository
 import uz.donfinity.itubepro.domain.repository.HistoryRepository
@@ -125,4 +127,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTrendingRepository(impl: NewPipeTrendingRepository): TrendingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAppUpdateRepository(impl: GitHubReleaseRepository): AppUpdateRepository
 }

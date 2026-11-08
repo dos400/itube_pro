@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -63,6 +64,8 @@ import uz.donfinity.itubepro.ui.player.VideoPlayer
 import uz.donfinity.itubepro.ui.player.rememberIsInPictureInPictureMode
 import uz.donfinity.itubepro.ui.search.SearchScreen
 import uz.donfinity.itubepro.ui.settings.SettingsScreen
+import uz.donfinity.itubepro.ui.update.UpdateEvent
+import uz.donfinity.itubepro.ui.update.UpdateViewModel
 
 /*
  * Type-safe routes: each destination is a @Serializable type instead of a string like
@@ -104,7 +107,11 @@ private enum class TopLevelTab(
  * long as the Activity.
  */
 @Composable
-fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
+fun AppNavHost(
+    nowPlayingViewModel: NowPlayingViewModel = hiltViewModel(),
+    // Activity-scoped like the one above: checks for an app update once per app start.
+    updateViewModel: UpdateViewModel = hiltViewModel(),
+) {
     val navController = rememberNavController()
     val nowPlaying by nowPlayingViewModel.state.collectAsStateWithLifecycle()
     val player by nowPlayingViewModel.player.collectAsStateWithLifecycle()
@@ -127,6 +134,26 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
     val resources = LocalResources.current
     LaunchedEffect(Unit) {
         nowPlayingViewModel.errorMessages.collect { snackbarHostState.showSnackbar(resources.getString(it)) }
+    }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        updateViewModel.events.collect { event ->
+            when (event) {
+                is UpdateEvent.Found -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = resources.getString(R.string.update_found, event.release.versionName),
+                        actionLabel = resources.getString(R.string.update_action),
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) updateViewModel.install()
+                }
+                UpdateEvent.NeedsInstallPermission -> {
+                    context.startActivity(updateViewModel.installPermissionIntent())
+                    snackbarHostState.showSnackbar(resources.getString(R.string.update_needs_permission))
+                }
+                is UpdateEvent.Message -> snackbarHostState.showSnackbar(resources.getString(event.message))
+            }
+        }
     }
     LaunchedEffect(Unit) {
         nowPlayingViewModel.skips.collect { segment ->
@@ -209,7 +236,11 @@ fun AppNavHost(nowPlayingViewModel: NowPlayingViewModel = hiltViewModel()) {
                 composable<PlaylistRoute> { PlaylistScreen(onBack = back, onVideoClick = openVideo) }
                 composable<SubscriptionsRoute> { SubscriptionsScreen(onBack = back, onChannelClick = openChannel) }
                 composable<SettingsRoute> {
-                    SettingsScreen(onBack = back, onOpenDebug = { navController.navigate(DebugRoute) })
+                    SettingsScreen(
+                        onBack = back,
+                        onOpenDebug = { navController.navigate(DebugRoute) },
+                        updateViewModel = updateViewModel,
+                    )
                 }
                 composable<DebugRoute> { DebugExtractionScreen() }
             }

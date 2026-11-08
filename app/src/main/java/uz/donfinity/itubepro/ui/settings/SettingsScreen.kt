@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,11 +36,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uz.donfinity.itubepro.R
 import uz.donfinity.itubepro.domain.model.SegmentCategory
 import uz.donfinity.itubepro.ui.common.labelRes
+import uz.donfinity.itubepro.ui.update.UpdateState
+import uz.donfinity.itubepro.ui.update.UpdateViewModel
 
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenDebug: () -> Unit,
+    /** Activity-scoped (owned by AppNavHost), so it shares the start-up check's result. */
+    updateViewModel: UpdateViewModel,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val audioOnly by viewModel.audioOnly.collectAsStateWithLifecycle()
@@ -47,6 +52,7 @@ fun SettingsScreen(
     val batteryUnrestricted by viewModel.batteryUnrestricted.collectAsStateWithLifecycle()
     val sponsorBlockEnabled by viewModel.sponsorBlockEnabled.collectAsStateWithLifecycle()
     val sponsorBlockCategories by viewModel.sponsorBlockCategories.collectAsStateWithLifecycle()
+    val updateState by updateViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // Runs on every ON_RESUME, e.g. when coming back from the system battery dialog.
@@ -61,6 +67,8 @@ fun SettingsScreen(
         batteryUnrestricted = batteryUnrestricted,
         sponsorBlockEnabled = sponsorBlockEnabled,
         sponsorBlockCategories = sponsorBlockCategories,
+        updateState = updateState,
+        versionName = updateViewModel.currentVersionName,
         onBack = onBack,
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
         onAutoplayNextChange = viewModel::onAutoplayNextChange,
@@ -74,6 +82,7 @@ fun SettingsScreen(
                 context.startActivity(viewModel.batteryFallbackIntent())
             }
         },
+        onUpdateClick = updateViewModel::onClick,
         onOpenDebug = onOpenDebug,
     )
 }
@@ -86,12 +95,15 @@ private fun SettingsContent(
     batteryUnrestricted: Boolean,
     sponsorBlockEnabled: Boolean,
     sponsorBlockCategories: Set<SegmentCategory>,
+    updateState: UpdateState,
+    versionName: String,
     onBack: () -> Unit,
     onAudioOnlyChange: (Boolean) -> Unit,
     onAutoplayNextChange: (Boolean) -> Unit,
     onSponsorBlockEnabledChange: (Boolean) -> Unit,
     onSponsorBlockCategoryToggle: (SegmentCategory) -> Unit,
     onBatteryClick: () -> Unit,
+    onUpdateClick: () -> Unit,
     onOpenDebug: () -> Unit,
 ) {
     Scaffold(
@@ -163,10 +175,29 @@ private fun SettingsContent(
                 }
             }
             ListItem(
+                headlineContent = { Text(stringResource(R.string.update_title)) },
+                supportingContent = { Text(updateSummary(updateState, versionName)) },
+                leadingContent = { Icon(Icons.Outlined.SystemUpdate, contentDescription = null) },
+                modifier = Modifier.clickable(enabled = updateState != UpdateState.Disabled, onClick = onUpdateClick),
+            )
+            ListItem(
                 headlineContent = { Text(stringResource(R.string.debug_title)) },
                 leadingContent = { Icon(Icons.Outlined.BugReport, contentDescription = null) },
                 modifier = Modifier.clickable(onClick = onOpenDebug),
             )
         }
     }
+}
+
+@Composable
+private fun updateSummary(state: UpdateState, versionName: String): String = when (state) {
+    UpdateState.Disabled -> stringResource(R.string.update_disabled, versionName)
+    UpdateState.Idle -> stringResource(R.string.update_idle, versionName)
+    UpdateState.Checking -> stringResource(R.string.update_checking)
+    UpdateState.UpToDate -> stringResource(R.string.update_up_to_date, versionName)
+    is UpdateState.Available -> stringResource(R.string.update_available, state.release.versionName)
+    is UpdateState.Downloading ->
+        stringResource(R.string.update_downloading, state.release.versionName, (state.progress * 100).toInt())
+    is UpdateState.Installing -> stringResource(R.string.update_installing)
+    is UpdateState.Failed -> stringResource(state.message)
 }

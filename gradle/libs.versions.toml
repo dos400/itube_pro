@@ -22,8 +22,9 @@ coroutines = "1.11.0"
 serialization = "1.12.0"
 okhttp = "5.5.0"
 coil = "3.6.3"
-# Pinned to the same commit ref/NewPipe uses. See CLAUDE.md → "Updating NewPipeExtractor".
-newpipeExtractor = "8443c91bf4276c326f7b33e30a36d88e0ab94cfe"
+# Same version NewPipe uses. CI (.github/workflows/extractor-bump.yml) updates this line daily.
+# Manual steps: CLAUDE.md → "Updating NewPipeExtractor".
+newpipeExtractor = "v0.27.0"
 
 # Testing
 junit = "4.13.2"

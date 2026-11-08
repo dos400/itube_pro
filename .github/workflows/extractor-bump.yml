@@ -1,0 +1,88 @@
+# Every day: if NewPipe moved to a newer NewPipeExtractor, use the same version, check that
+# tests and the build still pass, commit, and publish a release (release.yml).
+# If the build fails (the extractor's API changed), nothing is committed and the run fails:
+# GitHub emails you, and the fix is a manual one in :data (see CLAUDE.md).
+name: Follow NewPipe's extractor
+
+on:
+  schedule:
+    - cron: '17 3 * * *'   # daily, 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: extractor-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare with NewPipe
+        id: check
+        run: |
+          UPSTREAM=$(curl -fsSL https://raw.githubusercontent.com/TeamNewPipe/NewPipe/dev/gradle/libs.versions.toml \
+            | sed -n 's/^teamnewpipe-newpipe-extractor = "\(.*\)"$/\1/p')
+          CURRENT=$(sed -n 's/^newpipeExtractor = "\(.*\)"$/\1/p' gradle/libs.versions.toml)
+          echo "ours: $CURRENT, NewPipe: $UPSTREAM"
+          # Also guards the sed below: only a tag or commit hash may go into the file.
+          if ! echo "$UPSTREAM" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+            echo "::error::Couldn't read NewPipe's extractor version (was the key in their libs.versions.toml renamed?)"
+            exit 1
+          fi
+          echo "version=$UPSTREAM" >> "$GITHUB_OUTPUT"
+          if [ "$UPSTREAM" = "$CURRENT" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: android-actions/setup-android@v3
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Update and verify
+        if: steps.check.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          sed -i "s/^newpipeExtractor = \".*\"/newpipeExtractor = \"$VERSION\"/" gradle/libs.versions.toml
+          git diff
+          # JitPack builds the artifact on its first request and may time out: retry once.
+          ./gradlew :domain:test testDebugUnitTest assembleDebug --refresh-dependencies \
+            || ./gradlew :domain:test testDebugUnitTest assembleDebug --refresh-dependencies
+
+      - name: Commit
+        id: commit
+        if: steps.check.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Update NewPipeExtractor to $VERSION"
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: bump
+    if: needs.bump.outputs.sha != ''
+    uses: ./.github/workflows/release.yml
+    with:
+      ref: ${{ needs.bump.outputs.sha }}
+    secrets: inherit
