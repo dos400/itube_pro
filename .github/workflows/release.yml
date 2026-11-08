@@ -77,9 +77,18 @@ jobs:
         env:
           EXPECTED_CERT_SHA256: 9d8c13a90f893943b6eae783e1e17b09aafd3d378fab2f6e8df92a2450e33f03
         run: |
-          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
-          ACTUAL=$("$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          APK=app/build/outputs/apk/release/app-release.apk
+          ls "$ANDROID_HOME/build-tools"
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)"
+          # Capture stderr too, and fail loudly: without pipefail a broken apksigner looked
+          # like an empty certificate.
+          if ! CERTS=$("${BUILD_TOOLS}apksigner" verify --print-certs "$APK" 2>&1); then
+            echo "$CERTS"
+            echo "::error::apksigner failed (${BUILD_TOOLS})"
+            exit 1
+          fi
+          echo "$CERTS"
+          ACTUAL=$(echo "$CERTS" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
           echo "APK certificate: $ACTUAL"
           if [ "$ACTUAL" != "$EXPECTED_CERT_SHA256" ]; then
             echo "::error::APK is signed with the wrong key ($ACTUAL); the phone would refuse the update."
