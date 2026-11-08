@@ -30,18 +30,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref || github.sha }}
           # Full history: versionCode is the commit count (app/build.gradle.kts).
           fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
+      # The runner image already has the Android SDK; AGP downloads missing platforms
+      # itself once the licenses are accepted. (android-actions/setup-android@v3 broke:
+      # it installs the removed 'tools' package.)
+      - name: Accept Android SDK licenses
+        run: (yes || true) | "$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin | sort -V | tail -1)/sdkmanager" --licenses > /dev/null
 
       - uses: gradle/actions/setup-gradle@v4
 
