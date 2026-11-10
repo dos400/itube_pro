@@ -24,7 +24,7 @@ okhttp = "5.5.0"
 coil = "3.6.3"
 # Same version NewPipe uses. CI (.github/workflows/extractor-bump.yml) updates this line daily.
 # Manual steps: CLAUDE.md → "Updating NewPipeExtractor".
-newpipeExtractor = "v0.27.0"
+newpipeExtractor = "v0.27.1"
 
 # Testing
 junit = "4.13.2"
